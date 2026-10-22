@@ -3501,7 +3501,7 @@ module.exports=function(E){
    if(this.phase!=='turn')return out;
    const draw=h._zimo?.length===2;
    if(draw&&this.score(id,h,null,{preview:true})){add('ツモ',{win:true});if(h.lizhi)return out;}
-   if(draw){if(this.wall.length&&h._bingpai.z[4]&&(!h.lizhi||S.normal(h._zimo)==='z4'))add('北を抜く',{nuki:true});for(const m of this.kanOptions(id))add('カン',{kan:m});}
+   if(draw){if(h._bingpai.z[4]&&(!h.lizhi||S.normal(h._zimo)==='z4'))add('北を抜く',{nuki:true});for(const m of this.kanOptions(id))add('カン',{kan:m});}
    for(const t of h.get_dapai()||[]){add('打牌 '+t,{discard:t});if(draw&&!h.lizhi&&h.menqian&&this.points[id]>=1000&&S.shanten(h.clone().dapai(t))===0&&S.waits(h.clone().dapai(t)).length){const ready=h.clone().dapai(t);ready._lizhi=true;const waits=S.waits(ready);if(!waits.some(p=>S.score({hand:ready.clone().zimo(p),seat:(id-this.dealer+3)%3,rule:this.rule,indicators:this.indicators,north:this.north[id],flowers:this.flowers[id],flowerRules:this.options.flowerRules})))continue;const forcedOpen=this.hands.filter(h=>h.lizhi).length===2||this.rivers[id].some(p=>waits.includes(S.normal(p)))||waits.includes(S.normal(t));if(!forcedOpen)add('リーチ '+t,{discard:t,riichi:true});add('オープンリーチ '+t,{discard:t,riichi:true,open:true});}}
    return out;
   }
