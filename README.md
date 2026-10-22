@@ -1,0 +1,1 @@
+# mahjong-mania.github.io
