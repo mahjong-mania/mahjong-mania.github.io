@@ -1,0 +1,1 @@
+{"name":"mahjong-mania-site","private":true,"scripts":{"test":"node scripts/smoke-ui.js"}}
