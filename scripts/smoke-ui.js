@@ -24,6 +24,8 @@ const {chromium}=require('playwright'),http=require('http'),fs=require('fs'),pat
    let b=page.locator('#hand button:enabled').first();if(!await b.count())b=page.locator('#actions button').filter({hasText:'見送り'}).first();if(!await b.count())b=page.locator('#actions button').first();if(await b.count())await b.click();
   }
   await page.waitForFunction(()=>document.querySelector('#hand button:enabled')||document.querySelector('#actions button')||document.querySelector('#win-confirm[open]')||document.querySelector('#riichi-confirm[open]')||finished);
+  // Freeze the random match before layout checks; a CPU win must not block menu clicks.
+  await page.evaluate(()=>{game.stop();for(const id of ['win-confirm','riichi-confirm'])document.getElementById(id).close();globalThis.MatchComplete?.close();});
   assert.equal(await page.locator('.seat').count(),4);assert.ok(await page.locator('.river .tile').count()>0);
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
   await page.setViewportSize({width:844,height:390});
