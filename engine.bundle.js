@@ -209,11 +209,11 @@ module.exports = function(param = {}) {
 module.exports = class Shoupai {
 
     static normal_pai(p) {
-        return p[0] === 'z' ? p.replace(/[089A]/g, n=>({0:'5',8:'6',9:'4',A:'5'}[n])) : p.replace(/[0A]/g,'5');
+        return p[0] === 'z' ? p.replace(/[089A-C]/g, n=>({0:'5',8:'6',9:'4',A:'5',B:'5',C:'5'}[n])) : p.replace(/[0A]/g,'5');
     }
 
     static valid_pai(p) {
-        if (p.match(/^(?:[mps][0-9A]|z[0-9A])_?\*?[\+\=\-]?$/)) return p;
+        if (p.match(/^(?:[mps][0-9A]|z[0-9A-C])_?\*?[\+\=\-]?$/)) return p;
     }
 
     static valid_mianzi(m) {
@@ -224,19 +224,19 @@ module.exports = class Shoupai {
             return;
         }
         let h = m.replace(/0/g,'5');
-        if (h.match(/^[mpsz]([0-9A])\1\1[\+\=\-]\1?$/)) {
+        if (h.match(/^[mpsz]([0-9A-C])\1\1[\+\=\-]\1?$/)) {
             return m.replace(/([mpsz])05/,'$1'+'50');
         }
-        else if (h.match(/^[mpsz]([0-9A])\1\1\1[\+\=\-]?$/)) {
-            return m[0]+m.match(/[0-9A](?![\+\=\-])/g).sort().reverse().join('')
-                       +(m.match(/[0-9A][\+\=\-]$/)||[''])[0];
+        else if (h.match(/^[mpsz]([0-9A-C])\1\1\1[\+\=\-]?$/)) {
+            return m[0]+m.match(/[0-9A-C](?![\+\=\-])/g).sort().reverse().join('')
+                       +(m.match(/[0-9A-C][\+\=\-]$/)||[''])[0];
         }
-        else if (h.match(/^[mps][0-9A]+\-[0-9A]*$/)) {
+        else if (h.match(/^[mps][0-9A-C]+\-[0-9A-C]*$/)) {
             let hongpai = m.match(/0/);
-            let nn = h.match(/[0-9A]/g).sort();
+            let nn = h.match(/[0-9A-C]/g).sort();
             if (nn.length != 3)                               return;
             if (+nn[0] + 1 != +nn[1] || +nn[1] + 1 != +nn[2]) return;
-            h = h[0]+h.match(/[0-9A][\+\=\-]?/g).sort().join('');
+            h = h[0]+h.match(/[0-9A-C][\+\=\-]?/g).sort().join('');
             return hongpai ? h.replace(/5/,'0') : h;
         }
     }
@@ -248,7 +248,7 @@ module.exports = class Shoupai {
             m: [0,0,0,0,0,0,0,0,0,0,0],
             p: [0,0,0,0,0,0,0,0,0,0,0],
             s: [0,0,0,0,0,0,0,0,0,0,0],
-            z: [0,0,0,0,0,0,0,0,0,0,0],
+            z: [0,0,0,0,0,0,0,0,0,0,0,0,0],
         };
         this._fulou = [];
         this._zimo  = null;
@@ -260,8 +260,8 @@ module.exports = class Shoupai {
                 continue;
             }
             if (! (p = Shoupai.valid_pai(p)))       throw new Error(p);
-            let s = p[0], n = p[1]==='A'?10:+p[1];
-            const base = +Shoupai.normal_pai(s+(n===10?'A':n))[1];
+            let s = p[0], n = ({A:10,B:11,C:12}[p[1]]??+p[1]);
+            const base = +Shoupai.normal_pai(s+(({10:'A',11:'B',12:'C'}[n]??n)))[1];
             if (this._bingpai[s][base] >= 4) throw new Error([this,p]);
             this._bingpai[s][n]++;
             if (base !== n) this._bingpai[s][base]++;
@@ -274,9 +274,9 @@ module.exports = class Shoupai {
         let bingpai = fulou.shift();
 
         let qipai = bingpai.match(/^_*/)[0].match(/_/g) || [];
-        for (let suitstr of bingpai.match(/[mpsz][0-9A]+_*/g) || []) {
+        for (let suitstr of bingpai.match(/[mpsz][0-9A-C]+_*/g) || []) {
             let s = suitstr[0];
-            for (let n of suitstr.match(/[0-9A]/g)) {
+            for (let n of suitstr.match(/[0-9A-C]/g)) {
                 if (s == 'z' && (n < 0 || 9 < n)) continue;
                 qipai.push(s+n);
             }
@@ -310,9 +310,9 @@ module.exports = class Shoupai {
             let suitstr = s;
             let bingpai = this._bingpai[s];
             for (let n=1;n<=(s==='z'?7:9);n++) {
-                const markers = s==='z'?({4:[9],5:[0,10],6:[8]}[n]||[]):n===5?[0,10]:[];
+                const markers = s==='z'?({4:[9],5:[0,10,11,12],6:[8]}[n]||[]):n===5?[0,10]:[];
                 let total=bingpai[n], special=0;
-                for(const marker of markers){const ch=marker===10?'A':String(marker);let count=bingpai[marker]||0;if(this._zimo===s+ch){total--;count--;}special+=count;suitstr+=ch.repeat(Math.max(0,count));}
+                for(const marker of markers){const ch=({10:'A',11:'B',12:'C'}[marker]??String(marker));let count=bingpai[marker]||0;if(this._zimo===s+ch){total--;count--;}special+=count;suitstr+=ch.repeat(Math.max(0,count));}
                 if(this._zimo===s+n)total--;
                 suitstr+=String(n).repeat(Math.max(0,total-special));
             }
@@ -365,10 +365,10 @@ module.exports = class Shoupai {
     }
 
     decrease(s, n) {
-        let bingpai = this._bingpai[s]; n = n==='A'?10:+n;
-        const base = +Shoupai.normal_pai(s+(n===10?'A':n))[1];
+        let bingpai = this._bingpai[s]; n = ({A:10,B:11,C:12}[n]??+n);
+        const base = +Shoupai.normal_pai(s+(({10:'A',11:'B',12:'C'}[n]??n)))[1];
         const marker = s==='z' ? ({4:9,5:0,6:8}[base]) : base===5 ? 0 : undefined;
-        const available = n===base ? bingpai[base]-(marker===undefined?0:bingpai[marker])-(base===5?bingpai[10]:0) : bingpai[n];
+        const available = n===base ? bingpai[base]-(marker===undefined?0:bingpai[marker])-(base===5?bingpai[10]+(s==='z'?(bingpai[11]||0)+(bingpai[12]||0):0):0) : bingpai[n];
         if (!available) {
             if (!this._bingpai._) throw new Error([this,s+n]);
             this._bingpai._--;
@@ -386,13 +386,13 @@ module.exports = class Shoupai {
         }
         else {
             if (! Shoupai.valid_pai(p))             throw new Error(p);
-            let s = p[0], n = p[1]==='A'?10:+p[1];
+            let s = p[0], n = ({A:10,B:11,C:12}[p[1]]??+p[1]);
             let bingpai = this._bingpai[s];
-            const base = +Shoupai.normal_pai(s+(n===10?'A':n))[1];
+            const base = +Shoupai.normal_pai(s+(({10:'A',11:'B',12:'C'}[n]??n)))[1];
             if (bingpai[base] >= 4) throw new Error([this,p]);
             bingpai[n]++;
             if (base !== n) bingpai[base]++;
-            this._zimo = s+(n===10?'A':n);
+            this._zimo = s+(({10:'A',11:'B',12:'C'}[n]??n));
         }
         return this;
     }
@@ -400,7 +400,7 @@ module.exports = class Shoupai {
     dapai(p, check = true) {
         if (check && ! this._zimo)                  throw new Error([this, p]);
         if (! Shoupai.valid_pai(p))                 throw new Error(p);
-        let s = p[0], n = p[1]==='A'?10:+p[1];
+        let s = p[0], n = ({A:10,B:11,C:12}[p[1]]??+p[1]);
         this.decrease(s, p[1]);
         this._zimo = null;
         if (p.slice(-1) == '*') this._lizhi = true;
@@ -410,14 +410,14 @@ module.exports = class Shoupai {
     fulou(m, check = true) {
         if (check && this._zimo)                    throw new Error([this, m]);
         if (m != Shoupai.valid_mianzi(m))           throw new Error(m);
-        if (m.match(/[0-9A]{4}$/))                      throw new Error([this, m]);
-        if (m.match(/[0-9A]{3}[\+\=\-][0-9A]$/))            throw new Error([this, m]);
+        if (m.match(/[0-9A-C]{4}$/))                      throw new Error([this, m]);
+        if (m.match(/[0-9A-C]{3}[\+\=\-][0-9A-C]$/))            throw new Error([this, m]);
         let s = m[0];
-        for (let n of m.match(/[0-9A](?![\+\=\-])/g)) {
+        for (let n of m.match(/[0-9A-C](?![\+\=\-])/g)) {
             this.decrease(s, n);
         }
         this._fulou.push(m);
-        if (! m.match(/[0-9A]{4}/)) this._zimo = m;
+        if (! m.match(/[0-9A-C]{4}/)) this._zimo = m;
         return this;
     }
 
@@ -426,13 +426,13 @@ module.exports = class Shoupai {
         if (check && this._zimo.length > 2)         throw new Error([this, m]);
         if (m != Shoupai.valid_mianzi(m))           throw new Error(m);
         let s = m[0];
-        if (m.match(/[0-9A]{4}$/)) {
-            for (let n of m.match(/[0-9A]/g)) {
+        if (m.match(/[0-9A-C]{4}$/)) {
+            for (let n of m.match(/[0-9A-C]/g)) {
                 this.decrease(s, n);
             }
             this._fulou.push(m);
         }
-        else if (m.match(/[0-9A]{3}[\+\=\-][0-9A]$/)) {
+        else if (m.match(/[0-9A-C]{3}[\+\=\-][0-9A-C]$/)) {
             let m1 = m.slice(0,5);
             let i = this._fulou.findIndex(m2 => m1 == m2);
             if (i < 0)                              throw new Error([this, m]);
@@ -458,11 +458,11 @@ module.exports = class Shoupai {
         if (check && this._zimo.length > 2) {
             let m = this._zimo;
             let s = m[0];
-            let n = + m.match(/[0-9A](?=[\+\=\-])/) || 5;
+            let n = + m.match(/[0-9A-C](?=[\+\=\-])/) || 5;
             deny[s+n] = true;
-            if (! m.replace(/0/,'5').match(/^[mpsz]([0-9A])\1\1/)) {
-                if (n < 7 && m.match(/^[mps][0-9A]\-[0-9A][0-9A]$/)) deny[s+(n+3)] = true;
-                if (3 < n && m.match(/^[mps][0-9A][0-9A][0-9A]\-$/)) deny[s+(n-3)] = true;
+            if (! m.replace(/0/,'5').match(/^[mpsz]([0-9A-C])\1\1/)) {
+                if (n < 7 && m.match(/^[mps][0-9A-C]\-[0-9A-C][0-9A-C]$/)) deny[s+(n+3)] = true;
+                if (3 < n && m.match(/^[mps][0-9A-C][0-9A-C][0-9A-C]\-$/)) deny[s+(n-3)] = true;
             }
         }
 
@@ -2105,7 +2105,7 @@ function configure(ids){
  if(ids.filter(id=>BY_ID[id].pocchi).length>3)throw Error('ポッチは最大3種類です');
  return tiles;
 }
-function rawTiles(text){const out=[];for(const part of text.replace(/[+=_*!-]/g,'').match(/[mpsz][0-9A]+/g)||[])for(const n of part.slice(1))out.push(part[0]+n);return out;}
+function rawTiles(text){const out=[];for(const part of text.replace(/[+=_*!-]/g,'').match(/[mpsz][0-9A-C]+/g)||[])for(const n of part.slice(1))out.push(part[0]+n);return out;}
 function owned(rule,hand){return rawTiles(typeof hand==='string'?hand:hand.toString()).map(t=>rule.gemTiles?.[t]).filter(Boolean);}
 function has(rule,hand,effect){return owned(rule,hand).some(g=>g.effect===effect);}
 function wildcard(rule,hand){const g=rule.gemTiles?.[hand._zimo];return !!g?.pocchi && (g.id==='gold-pocchi'||hand.lizhi);}
@@ -3341,8 +3341,8 @@ module.exports = class Player {
 module.exports=function install(M){
  const S=M.Shoupai, originalValid=S.valid_mianzi;
  S.valid_mianzi=m=>originalValid(S.normal_pai(m))?m:undefined;
- function normalized(hand){const h=hand.clone();for(const s of ['m','p','s','z']){for(const n of s==='z'?[0,8,9,10]:[0,10])h._bingpai[s][n]=0;}h._zimo=h._zimo?S.normal_pai(h._zimo):null;h._fulou=h._fulou.map(m=>S.normal_pai(m));return h;}
- function available(hand,s,n){const b=hand._bingpai[s],markers=s==='z'?({4:[9],5:[0,10],6:[8]}[n]||[]):n===5?[0,10]:[];const a=[];let specials=0;for(const i of markers){const k=b[i]||0;specials+=k;for(let j=0;j<k;j++)a.push(i===10?'A':String(i));}for(let j=0;j<b[n]-specials;j++)a.push(String(n));return a;}
+ function normalized(hand){const h=hand.clone();for(const s of ['m','p','s','z']){for(const n of s==='z'?[0,8,9,10,11,12]:[0,10])h._bingpai[s][n]=0;}h._zimo=h._zimo?S.normal_pai(h._zimo):null;h._fulou=h._fulou.map(m=>S.normal_pai(m));return h;}
+ function available(hand,s,n){const b=hand._bingpai[s],markers=s==='z'?({4:[9],5:[0,10,11,12],6:[8]}[n]||[]):n===5?[0,10]:[];const a=[];let specials=0;for(const i of markers){const k=b[i]||0;specials+=k;for(let j=0;j<k;j++)a.push(({10:'A',11:'B',12:'C'}[i]??String(i)));}for(let j=0;j<b[n]-specials;j++)a.push(String(n));return a;}
  const getDiscard=S.prototype.get_dapai;
  S.prototype.get_dapai=function(check=true){if(this.lizhi)return this._zimo?.length===2?[this._zimo+'_']:null;const legal=getDiscard.call(normalized(this),check);if(!legal)return legal;const out=[];for(const p of legal){if(p.endsWith('_'))out.push(this._zimo+'_');else for(const ch of new Set(available(this,p[0],+p[1])))out.push(p[0]+ch);}return [...new Set(out)];};
  for(const name of ['get_chi_mianzi','get_peng_mianzi','get_gang_mianzi']){
@@ -3487,11 +3487,11 @@ module.exports=function(E){
   spring(id,flower){const before=this.flowers[id].slice();this.flowers[id].push(flower);const n=S.springDelta(before,this.flowers[id],this.options);if(n)this.chipPay(id,null,n,'春の即時祝儀');this.log.unshift(this.names[id]+'：'+S.FLOWERS[+flower[1]-1]+'を抜きました');}
   chipPay(winner,loser,n,label){const delta=[0,0,0];for(let i=0;i<3;i++)if(i!==winner&&(loser===null||i===loser)){this.chips[i]-=n;this.chips[winner]+=n;delta[i]-=n;delta[winner]+=n;}this.ledger.push({winner,loser,n,label,delta});}
   take(id){while(this.wall.length){const t=this.wall.pop();if(t[0]==='f'){this.spring(id,t);continue;}return t;}return null;}
-  startRound(){this.roundLedgerStart=this.ledger.length;this.phase='dealing';this.rounds++;this.draws=[0,0,0];this.anyCalls=false;this.kans=0;this.hands=[];this.rivers=[[],[],[]];this.flowers=[[],[],[]];this.north=[0,0,0];this.ippatsu=[false,false,false];this.openRiichi=[false,false,false];this.furiten=[false,false,false];this.mustDiscard=false;this.rinshan=false;this.last=null;this.roundStartPoints=this.points.slice();this.roundStartChips=this.chips.slice();const wall=S.makeWall(this.options,this.rng);this.dead=wall.splice(0,4);this.wall=wall;for(let id=0;id<3;id++){const tiles=[];for(let j=0;j<13;j++)tiles.push(this.take(id));this.hands.push(new M.Shoupai(tiles));}this.turn=this.dealer;this.draw();}
+  startRound(){this.roundLedgerStart=this.ledger.length;this.phase='dealing';this.rounds++;this.draws=[0,0,0];this.anyCalls=false;this.pao=[{}, {}, {}];this.kans=0;this.hands=[];this.rivers=[[],[],[]];this.flowers=[[],[],[]];this.north=[0,0,0];this.ippatsu=[false,false,false];this.openRiichi=[false,false,false];this.furiten=[false,false,false];this.mustDiscard=false;this.rinshan=false;this.last=null;this.roundStartPoints=this.points.slice();this.roundStartChips=this.chips.slice();const wall=S.makeWall(this.options,this.rng);this.dead=wall.splice(0,4);this.wall=wall;for(let id=0;id<3;id++){const tiles=[];for(let j=0;j<13;j++)tiles.push(this.take(id));this.hands.push(new M.Shoupai(tiles));}this.turn=this.dealer;this.draw();}
   draw(rinshan=false){this.rinshan=rinshan;this.mustDiscard=false;const t=this.take(this.turn);if(!t)return this.drawnGame();if(!this.hands[this.turn].lizhi)this.furiten[this.turn]=false;this.hands[this.turn].zimo(t);this.draws[this.turn]++;this.phase='turn';}
-  score(id,hand=this.hands[id],ron=null,{honba=this.honba,rob=false,preview=false}={}){return S.score({hand,ron,seat:(id-this.dealer+3)%3,rule:this.rule,indicators:this.indicators,ura:preview?[]:this.ura,north:this.north[id],flowers:this.flowers[id],flowerRules:this.options.flowerRules,ippatsu:this.ippatsu[id],rinshan:!ron&&this.rinshan,last:this.wall.length===0,honba,qianggang:rob,tianhu:!ron&&!hand.lizhi&&!this.anyCalls&&this.draws[id]===1&&!this.rivers[id].length?(id===this.dealer?1:2):0,openRiichi:this.openRiichi[id]});}
+  score(id,hand=this.hands[id],ron=null,{honba=this.honba,rob=false,preview=false}={}){return S.score({hand,ron,seat:(id-this.dealer+3)%3,rule:this.rule,indicators:this.indicators,ura:preview?[]:this.ura,north:this.north[id],flowers:this.flowers[id],flowerRules:this.options.flowerRules,ippatsu:this.ippatsu[id],rinshan:!ron&&this.rinshan,last:this.wall.length===0,honba,qianggang:rob,tianhu:!ron&&!hand.lizhi&&!this.anyCalls&&this.draws[id]===1&&!this.rivers[id].length?(id===this.dealer?1:2):0,renhou:!!ron&&id!==this.dealer&&!this.anyCalls&&this.draws[id]===0,openRiichi:this.openRiichi[id]});}
   canRon(id){if(this.furiten[id])return false;const wait=S.waits(this.hands[id]);if(this.rivers[id].some(t=>wait.includes(S.normal(t))))return false;return !!this.score(id,this.hands[id],this.last.tile+signedDirection(this.last.from,id),{rob:this.phase==='rob',preview:true});}
-  kanOptions(id){const h=this.hands[id];if(this.kans>=4||this.wall.length<3)return [];let ks=h.get_gang_mianzi()||[];if(h.lizhi){const before=S.waits(h.clone().dapai(h._zimo)).sort().join(',');ks=ks.filter(m=>/^[mpsz][0-9A]{4}$/.test(m)&&S.waits(h.clone().gang(m)).sort().join(',')===before);}return ks;}
+  kanOptions(id){const h=this.hands[id];if(this.kans>=4||this.wall.length<3)return [];let ks=h.get_gang_mianzi()||[];if(h.lizhi){const before=S.waits(h.clone().dapai(h._zimo)).sort().join(',');ks=ks.filter(m=>/^[mpsz][0-9A-C]{4}$/.test(m)&&S.waits(h.clone().gang(m)).sort().join(',')===before);}return ks;}
   actions(){const id=this.actor,h=this.hands[id],out=[],add=(label,reply)=>out.push({label,reply});if(this.phase==='roundEnd'){add(this.finished?'対局結果へ':'次の局へ',{next:true});return out;}if(this.phase==='finished')return out;
    if(this.phase==='react'||this.phase==='rob'){
     const ron=this.canRon(id);if(ron)add('ロン',{win:true});if(ron&&h.lizhi)return out;
@@ -3517,16 +3517,20 @@ module.exports=function(E){
   commitKan(id,m,open=false){this.anyCalls=true;if(!open)this.hands[id].gang(m);this.dead.push(this.wall.shift(),this.wall.shift());this.kans++;this.ippatsu=[false,false,false];this.turn=id;this.log.unshift(this.names[id]+'：カン');this.draw(true);}
   resolveResponses(){const wins=this.responses.filter(r=>r.reply.win).map(r=>r.id);if(wins.length){if(this.last.riichi){this.points[this.last.from]+=1000;this.sticks--;this.ippatsu[this.last.from]=false;}this.win(wins,this.last.from);return;}
    if(this.phase==='rob'){this.commitKan(this.last.from,this.last.kan);return;}
-   const call=this.responses.find(r=>r.reply.pon||r.reply.kan);if(call){this.anyCalls=true;const m=call.reply.pon||call.reply.kan;this.hands[call.id].fulou(m);this.rivers[this.last.from][this.rivers[this.last.from].length-1]+='-';this.ippatsu=[false,false,false];this.turn=call.id;this.log.unshift(this.names[call.id]+'：'+(call.reply.pon?'ポン':'カン'));if(call.reply.kan)this.commitKan(call.id,m,true);else{this.mustDiscard=true;this.rinshan=false;this.phase='turn';}return;}
+   const call=this.responses.find(r=>r.reply.pon||r.reply.kan);if(call){this.anyCalls=true;const m=call.reply.pon||call.reply.kan;this.hands[call.id].fulou(m);const sets=this.hands[call.id]._fulou.map(x=>S.normal(x));if(/^z[567]/.test(S.normal(m))&&sets.filter(x=>/^z[567]$/.test(x)).length===3&&this.pao[call.id]['大三元']===undefined)this.pao[call.id]['大三元']=this.last.from;if(/^z[1234]/.test(S.normal(m))&&sets.filter(x=>/^z[1234]$/.test(x)).length===4&&this.pao[call.id]['大四喜']===undefined)this.pao[call.id]['大四喜']=this.last.from;this.rivers[this.last.from][this.rivers[this.last.from].length-1]+='-';this.ippatsu=[false,false,false];this.turn=call.id;this.log.unshift(this.names[call.id]+'：'+(call.reply.pon?'ポン':'カン'));if(call.reply.kan)this.commitKan(call.id,m,true);else{this.mustDiscard=true;this.rinshan=false;this.phase='turn';}return;}
    this.turn=(this.last.from+1)%3;this.draw();
   }
   win(winners,loser){const wins=[],before=this.points.slice(),beforeChips=this.chips.slice();for(let i=0;i<winners.length;i++){
    const id=winners[i],ron=loser===null?null:this.last.tile+signedDirection(loser,id),result=this.score(id,this.hands[id],ron,{honba:i===0?this.honba:0,rob:this.phase==='rob'});if(!result)throw Error('和了形が不正です');
-   if(loser===null){for(let other=0;other<3;other++)if(other!==id){const n=other===this.dealer?result.pay.dealer:result.pay.child;this.points[other]-=n;this.points[id]+=n;}}else{this.points[loser]-=result.pay.ron;this.points[id]+=result.pay.ron;}
+   const responsible=result.damanguan?result.yaku.map(y=>this.pao[id][y.name]).find(p=>p!==undefined):undefined;
+   if(responsible!==undefined){result.pao=responsible;if(loser===null){const total=[0,1,2].filter(p=>p!==id).reduce((n,p)=>n+(p===this.dealer?result.pay.dealer:result.pay.child),0);this.points[responsible]-=total;this.points[id]+=total;}else{const honba=(i===0?this.honba:0)*1000,half=(result.pay.ron-honba)/2;this.points[responsible]-=half+honba;this.points[loser]-=half;this.points[id]+=result.pay.ron;}}
+   else if(loser===null){for(let other=0;other<3;other++)if(other!==id){const n=other===this.dealer?result.pay.dealer:result.pay.child;this.points[other]-=n;this.points[id]+=n;}}else{this.points[loser]-=result.pay.ron;this.points[id]+=result.pay.ron;}
    if(i===0){this.points[id]+=this.sticks*1000;this.sticks=0;}
-   if(result.override){this.chipPay(id,null,result.override,'四北四華・八華');result.lines=[{label:'四北四華・八華（他祝儀なし）',amount:result.override}];}
+   const type=result.white?Object.keys(S.POCCHI).find(t=>S.POCCHI[t]===result.pocchi):'normal',factor=({normal:1,reverse:-1,double:2,reverseDouble:-2})[type];result.chipFactor=factor;result.pocchiType=type;const award=(loser,n,label)=>this.chipPay(id,loser,n*factor,label);
+   if(result.override){award(null,result.override,'四北四華・八華');result.lines=[{label:'四北四華・八華（他祝儀なし）',amount:result.override}];}
    else{if(result.eff[3]&&['alice','tulip'].includes(this.options.flowerRules.winter)){result.alice=S.alice({tiles:result.tiles,wall:this.wall,mode:this.options.flowerRules.winter,winter:result.eff[3],open:!this.hands[id].menqian,guarantee:(this.ippatsu[id]?1:0)+(result.white?1:0)});if(result.alice.chips)result.lines.push({label:result.alice.mode,amount:result.alice.chips});}
-    this.chipPay(id,loser,result.lines.reduce((n,l)=>n+l.amount,0),'和了祝儀');if(result.diceEligible){result.dice=S.dice(this.rng);this.chipPay(id,null,result.dice.chips,'サイコロチャンス');}}
+    if(result.eff[0]&&this.options.flowerRules.spring==='tulip'&&this.hands[id].lizhi){result.springTulip=S.alice({tiles:result.tiles,wall:this.wall,mode:'tulip',winter:result.eff[0]});result.lines.push({label:'春・リーチ和了チューリップ',amount:result.springTulip.chips});}
+    award(loser,result.lines.reduce((n,l)=>n+l.amount,0),'和了祝儀');if(result.diceEligible){result.dice=S.dice(this.rng);award(null,result.dice.chips,'サイコロチャンス');}result.extraDice=[];if(result.eff[3]&&this.options.flowerRules.winter==='dice')for(let n=0;n<result.eff[3];n++){const d=S.oneDie(this.rng);result.extraDice.push({...d,label:'冬・サイコロ1個'});award(null,d.chips,'冬・サイコロ1個');}if(result.white&&this.ippatsu[id]&&this.options.pocchiIppatsuDice){const d=S.twoDice(this.rng);result.extraDice.push({...d,label:'ポッチ一発・サイコロ2個'});award(null,d.chips,'ポッチ一発・サイコロ2個');}}
    wins.push({id,loser,...result,received:this.points[id]-before[id]});
   }
   const busted=[];for(let id=0;id<3;id++)if(this.points[id]<=0){busted.push(id);for(const winner of winners)if(winner!==id)this.chipPay(winner,id,2,'トビ賞');}
@@ -3543,7 +3547,7 @@ module.exports=function(E){
   const base=S.shanten(game.hands[id]);for(const a of options.filter(a=>a.reply.pon)){const h=game.hands[id].clone().fulou(a.reply.pon),s=S.normal(a.reply.pon);if(s[0]!=='z'||![1,5,6,7,(id-game.dealer+3)%3+1].includes(+s[1]))continue;for(const t of h.get_dapai()||[])if(S.shanten(h.clone().dapai(t))<base)return a.reply;}
   return options.find(a=>a.reply.pass)?.reply||options[0].reply;
  }
- function saveResult(storage,game){const key='houseki-sanma-results-v1';let record;try{record=JSON.parse(storage.getItem(key)||'{"games":[],"totals":{}}');}catch{throw Error('保存データを読み込めません。上書きはしません。');}if(!record||!Array.isArray(record.games)||!record.totals)throw Error('保存データが不正です');if(!game.results)throw Error('対局はまだ終了していません');if(record.games.some(g=>g.id===game.id))return record;for(const r of game.results){const t=record.totals[r.id]||{games:0,rankChips:0,bonusChips:0};record.totals[r.id]={games:t.games+1,rankChips:t.rankChips+r.rankChips,bonusChips:t.bonusChips+r.bonusChips};}record.games.push({id:game.id,at:new Date().toISOString(),results:game.results,options:{flowerCopies:game.options.flowerCopies,flowerRules:game.options.flowerRules}});storage.setItem(key,JSON.stringify(record));return record;}
+ function saveResult(storage,game){const key='houseki-sanma-results-v1';let record;try{record=JSON.parse(storage.getItem(key)||'{"games":[],"totals":{}}');}catch{throw Error('保存データを読み込めません。上書きはしません。');}if(!record||!Array.isArray(record.games)||!record.totals)throw Error('保存データが不正です');if(!game.results)throw Error('対局はまだ終了していません');if(record.games.some(g=>g.id===game.id))return record;for(const r of game.results){const t=record.totals[r.id]||{games:0,rankChips:0,bonusChips:0};record.totals[r.id]={games:t.games+1,rankChips:t.rankChips+r.rankChips,bonusChips:t.bonusChips+r.bonusChips};}record.games.push({id:game.id,at:new Date().toISOString(),results:game.results,options:{flowerCopies:game.options.flowerCopies,flowerRules:game.options.flowerRules,pocchiTypes:game.options.pocchiTypes,pocchiIppatsuDice:game.options.pocchiIppatsuDice}});storage.setItem(key,JSON.stringify(record));return record;}
  return {...S,Game,cpu,saveResult};
 };
 
@@ -3552,29 +3556,30 @@ module.exports=function(E){
 'use strict';
 module.exports=function(E){
  const {M,J}=E,normal=t=>M.Shoupai.normal_pai(t).slice(0,2),FLOWERS=['春','夏','秋','冬'];
+ const POCCHI={normal:'z0',reverse:'zA',double:'zB',reverseDouble:'zC'},POCCHI_NAMES={normal:'白ポッチ',reverse:'逆ポッチ',double:'倍ポッチ',reverseDouble:'逆倍ポッチ'};
  const DEFAULT_FLOWERS={spring:'linked',summer:'rank',autumn:'dora',winter:'alice'};
- const VARIANTS={spring:['linked','fixed','off'],summer:['rank','han','off'],autumn:['dora','chips','off'],winter:['alice','tulip','chips','off']};
- function options(extra={}){const flowerRules={...DEFAULT_FLOWERS,...extra.flowerRules};for(const [k,values]of Object.entries(VARIANTS))if(!values.includes(flowerRules[k]))throw Error('華の設定が不正です');if(extra.flowerCopies!==undefined&&![1,2].includes(extra.flowerCopies))throw Error('華は4枚または8枚です');return {flowerCopies:1,whitePocchi:true,...extra,flowerRules};}
+ const VARIANTS={spring:['linked','fixed','tulip','off'],summer:['rank','han','off'],autumn:['dora','double','chips','off'],winter:['alice','tulip','dice','chips','off']};
+ function options(extra={}){const flowerRules={...DEFAULT_FLOWERS,...extra.flowerRules};for(const [k,values]of Object.entries(VARIANTS))if(!values.includes(flowerRules[k]))throw Error('華の設定が不正です');if(extra.flowerCopies!==undefined&&![1,2].includes(extra.flowerCopies))throw Error('華は4枚または8枚です');if(extra.pocchiType&&!['normal','reverse','double','reverseDouble'].includes(extra.pocchiType))throw Error('ポッチの設定が不正です');const pocchiTypes=extra.pocchiTypes??(extra.whitePocchi===false?[]:[extra.pocchiType||'normal']);if(!Array.isArray(pocchiTypes)||pocchiTypes.length>4||new Set(pocchiTypes).size!==pocchiTypes.length||pocchiTypes.some(t=>!POCCHI[t]))throw Error('ポッチは各種類1枚・合計4枚までです');return {pocchiTypes,flowerCopies:1,whitePocchi:true,pocchiType:'normal',pocchiIppatsuDice:false,...extra,flowerRules};}
  function rule(){const gemTiles={};for(const s of ['p','s'])for(const [ch,color,chips]of [['0','金',1],['A','赤',0]])gemTiles[s+ch]={id:'sanma-'+s+ch,name:color+'5'+s,base:s+'5',han:1,effect:'fixed',chips,pocchi:false};gemTiles.z0={id:'topaz',name:'白ポッチ',base:'z5',han:0,effect:'fixed',chips:0,pocchi:true};return M.rule({'配給原点':35000,'赤牌':{m:0,p:0,s:0},'切り上げ満貫あり':true,'役満の複合あり':false,'ダブル役満あり':false,'数え役満あり':true,'場風牌':[1],'ツモ番なしリーチあり':true,'リーチ後暗槓許可レベル':2,gemTiles,gemSelection:[],jewelBonus:false,fullJewel:false});}
- function makeWall(o,rng=Math.random){const a=[];for(const s of ['m','p','s','z'])for(let n=1;n<=(s==='z'?7:9);n++){if(s==='m'&&n!==1&&n!==9)continue;for(let i=0;i<4;i++)a.push(s+((s==='p'||s==='s')&&n===5?(i<2?'0':'A'):s==='z'&&n===5&&i===0&&o.whitePocchi?'0':n));}for(let f=1;f<=4;f++)for(let i=0;i<o.flowerCopies;i++)a.push('f'+f);for(let i=a.length-1;i>0;i--){const j=Math.floor(rng()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+ function makeWall(o,rng=Math.random){const a=[];for(const s of ['m','p','s','z'])for(let n=1;n<=(s==='z'?7:9);n++){if(s==='m'&&n!==1&&n!==9)continue;for(let i=0;i<4;i++)a.push(s+((s==='p'||s==='s')&&n===5?(i<2?'0':'A'):s==='z'&&n===5&&i<o.pocchiTypes.length?POCCHI[o.pocchiTypes[i]][1]:n));}for(let f=1;f<=4;f++)for(let i=0;i<o.flowerCopies;i++)a.push('f'+f);for(let i=a.length-1;i>0;i--){const j=Math.floor(rng()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
  function counts(hand){return J.rawTiles(hand.toString()).map(normal);}
  function sevenPairs(hand){if(hand._fulou.length)return false;const a=counts(hand),c={};for(const t of a)c[t]=(c[t]||0)+1;return a.length===14&&Object.values(c).every(n=>n%2===0);}
  function shanten(hand){if(hand._fulou.length)return M.Util.xiangting(hand);let pairs=0;for(const s of ['m','p','s','z'])for(let n=1;n<=(s==='z'?7:9);n++)pairs+=Math.floor((hand._bingpai[s][n]||0)/2);return Math.min(M.Util.xiangting(hand),6-pairs);}
  function waits(hand){if(hand._zimo)return [];const n=shanten(hand),out=[];for(const s of ['m','p','s','z'])for(let i=1;i<=(s==='z'?7:9);i++){if(s==='m'&&i!==1&&i!==9||hand._bingpai[s][i]>=4)continue;if(shanten(hand.clone().zimo(s+i))<n)out.push(s+i);}return out;}
  function indicator(t){if(t[0]==='f')return null;return normal(t)==='m1'?'m8':normal(t);}
  function dora(t){return t[0]==='f'?null:M.Shan.zhenbaopai(indicator(t));}
- function springDelta(before,after,o){if(o.flowerRules.spring==='off')return 0;if(o.flowerRules.spring==='fixed')return after.length-before.length;return after.filter(t=>t==='f1').length*after.length-before.filter(t=>t==='f1').length*before.length;}
+ function springDelta(before,after,o){if(['off','tulip'].includes(o.flowerRules.spring))return 0;if(o.flowerRules.spring==='fixed')return after.length-before.length;return after.filter(t=>t==='f1').length*after.length-before.filter(t=>t==='f1').length*before.length;}
  function effects(flowers,indicators){return [1,2,3,4].map(n=>flowers.filter(t=>t==='f'+n).length+indicators.filter(t=>t==='f'+n).length);}
  function payments(han,yakuman,summer,dealer,tsumo,honba=0){let base,tier;
   if(yakuman){base=8000;tier=7;}else if(han>=14){base=8000;tier=7;}else if(han>=11){base=6000;tier=6;}else if(han>=8){base=4000;tier=5;}else if(han>=6){base=3000;tier=4;}else if(han>=4){base=2000;tier=3;}else {tier=Math.max(0,han-1);base=30*2**(han+2);}
   const tiers=[240,480,960,2000,3000,4000,6000,8000,10000];tier=Math.min(8,tier+summer);if(summer)base=tiers[tier];const round=n=>Math.ceil(n/1000)*1000;
   return {tier,base,label:['1翻','2翻','3翻','満貫','跳満','倍満','三倍満',yakuman?'役満':'数え役満','5倍満'][tier],ron:round(base*(dealer?6:4))+honba*1000,child:round(base*(dealer?3:1.5))+honba*1000,dealer:round(base*(dealer?3:2.5))+honba*1000};
  }
- function score({hand,ron=null,seat=1,rule:gameRule=rule(),indicators=[],ura=[],north=0,flowers=[],flowerRules=DEFAULT_FLOWERS,ippatsu=false,rinshan=false,last=false,honba=0,qianggang=false,openRiichi=false,tianhu=0}){
+ function score({hand,ron=null,seat=1,rule:gameRule=rule(),indicators=[],ura=[],north=0,flowers=[],flowerRules=DEFAULT_FLOWERS,ippatsu=false,rinshan=false,last=false,honba=0,qianggang=false,openRiichi=false,tianhu=0,renhou=false}){
   // Evaluate wildcard candidates with sanma's own seven-pairs and flower scoring too.
-  if(!ron&&hand.lizhi&&hand._zimo==='z0'){
-   const base=hand.clone().dapai('z0');let best=null,bestValue=-Infinity,bestChips=-Infinity;
-   for(const t of waits(base)){const r=score({...arguments[0],hand:base.clone().zimo(t)});if(!r)continue;const value=seat===0?r.pay.child*2:r.pay.child+r.pay.dealer,chips=r.lines.reduce((n,l)=>n+l.amount,0);if(value>bestValue||value===bestValue&&chips>bestChips){best={...r,pocchiAs:t,pocchi:'z0',white:true,diceEligible:true,physical:hand.toString()};bestValue=value;bestChips=chips;}}
+  if(!ron&&hand.lizhi&&Object.values(POCCHI).includes(hand._zimo)){
+   const base=hand.clone().dapai(hand._zimo);let best=null,bestValue=-Infinity,bestChips=-Infinity;
+   for(const t of waits(base)){const r=score({...arguments[0],hand:base.clone().zimo(t)});if(!r)continue;const value=seat===0?r.pay.child*2:r.pay.child+r.pay.dealer,chips=r.lines.reduce((n,l)=>n+l.amount,0);if(value>bestValue||value===bestValue&&chips>bestChips){best={...r,pocchiAs:t,pocchi:hand._zimo,white:true,diceEligible:true,physical:hand.toString()};bestValue=value;bestChips=chips;}}
    return best;
   }
   const physical=ron?hand.clone().zimo(ron.slice(0,2)):hand,eff=effects(flowers,indicators),baopai=indicators.map(indicator).filter(Boolean),fubaopai=hand.lizhi?ura.map(indicator).filter(Boolean):[];
@@ -3582,7 +3587,7 @@ module.exports=function(E){
   if(sevenPairs(physical)){
    const a=counts(physical),suits=new Set(a.map(t=>t[0])),ys=[{name:'七対子',fanshu:2}];if(hand.lizhi)ys.push({name:'立直',fanshu:1});if(!ron)ys.push({name:'門前清自摸和',fanshu:1});if(ippatsu)ys.push({name:'一発',fanshu:1});if(qianggang)ys.push({name:'槍槓',fanshu:1});if(tianhu)ys.push({name:tianhu===1?'天和':'地和',fanshu:'*'});if(a.every(t=>t[0]==='z'))ys.push({name:'字一色',fanshu:'*'});if(a.every(t=>['s2','s3','s4','s6','s8','z6'].includes(t)))ys.push({name:'緑一色',fanshu:'*'});if(a.every(t=>t[0]!=='z'&&/[19]/.test(t[1])))ys.push({name:'清老頭',fanshu:'*'});if(last)ys.push({name:ron?'河底撈魚':'海底摸月',fanshu:1});if(a.every(t=>t[0]!=='z'&&!/[19]/.test(t[1])))ys.push({name:'断幺九',fanshu:1});if(a.every(t=>t[0]==='z'||/[19]/.test(t[1])))ys.push({name:'混老頭',fanshu:2});if(suits.size===1&&!suits.has('z'))ys.push({name:'大車輪',fanshu:'*'});else if(suits.size===2&&suits.has('z'))ys.push({name:'混一色',fanshu:3});const red=J.rawTiles(physical.toString()).filter(t=>/[ps][0A]/.test(t)).length;if(red)ys.push({name:'赤・金ドラ',fanshu:red});for(const [name,ds]of [['ドラ',indicators],['裏ドラ',hand.lizhi?ura:[]]]){const n=ds.reduce((n,i)=>n+a.filter(t=>t===dora(i)).length,0);if(n)ys.push({name,fanshu:n});}const yakuman=ys.some(y=>y.fanshu==='*'),fan=ys.reduce((n,y)=>n+(typeof y.fanshu==='number'?y.fanshu:0),0);if(!r?.hupai||yakuman&&!r.damanguan||!r.damanguan&&fan>(r.fanshu||0))r={hupai:yakuman?ys.filter(y=>y.fanshu==='*'):ys,fanshu:yakuman?undefined:fan,damanguan:yakuman?1:undefined,fu:30};
   }
-  if(!r?.hupai?.length)return null;
+  if(renhou&&!r?.hupai?.length)r={hupai:[{name:'人和',fanshu:8}],fanshu:8};if(!r?.hupai?.length)return null;
   // North may only remain in kokushi or the four-winds yakuman hands.
   if(counts(physical).includes('z4')&&!r.hupai.some(y=>/国士無双|四喜/.test(y.name)))return null;
   const a=counts(physical);if(r.pocchiAs){const i=a.indexOf('z5');if(i>=0)a[i]=r.pocchiAs;}
@@ -3593,10 +3598,12 @@ module.exports=function(E){
   const extraUra=north*(hand.lizhi?ura.filter(i=>dora(i)==='z4').length:0);
   if(eff[2]&&flowerRules.autumn==='dora'){const n=a.filter(t=>/[ps]5/.test(t)).length*eff[2];han+=n;if(n)yaku.push({name:'秋ドラ',fanshu:n});}
   if(eff[1]&&flowerRules.summer==='han'){han+=eff[1];yaku.push({name:'夏の加翻',fanshu:eff[1]});}
+  if(renhou&&!r.damanguan){han=Math.max(8,han);yaku.push(...(yaku.some(y=>y.name==='人和')?[]:[{name:'人和（倍満保証）',fanshu:8}]));}
+  if(eff[2]&&flowerRules.autumn==='double'){const fives=a.filter(t=>/[ps]5/.test(t));const n=fives.length+fives.reduce((n,t)=>n+indicators.concat(hand.lizhi?ura:[]).filter(i=>dora(i)===t).length,0);han+=n;if(n)yaku.push({name:'秋・5筒5索ドラ倍増',fanshu:n});}
   const pay=payments(han,!!r.damanguan,flowerRules.summer==='rank'?eff[1]:0,seat===0,!ron,honba),lines=[];const add=(label,amount)=>{if(amount)lines.push({label,amount});};
-  add('一発',ippatsu?1:0);add('裏ドラ',extraUra+yaku.filter(y=>y.name==='裏ドラ').reduce((n,y)=>n+Number(y.fanshu),0));add('抜き北',north);const gold=J.rawTiles(physical.toString()).filter(t=>t==='p0'||t==='s0').length;add('金牌',gold);add('春の表示牌',flowerRules.spring==='off'?0:indicators.filter(t=>t==='f1').length*5);if(flowerRules.autumn==='chips')add('秋の祝儀',eff[2]);if(flowerRules.winter==='chips')add('冬の祝儀',eff[3]*2);
+  add('一発',ippatsu?1:0);add('裏ドラ',extraUra+yaku.filter(y=>y.name==='裏ドラ').reduce((n,y)=>n+Number(y.fanshu),0));add('抜き北',north);const gold=J.rawTiles(physical.toString()).filter(t=>t==='p0'||t==='s0').length;add('金牌',gold*(eff[2]&&flowerRules.autumn==='double'?2:1));add('春の表示牌',['off','tulip'].includes(flowerRules.spring)?0:indicators.filter(t=>t==='f1').length*5);if(flowerRules.autumn==='chips')add('秋の祝儀',eff[2]);if(flowerRules.winter==='chips')add('冬の祝儀',eff[3]*2);
   if(r.damanguan)add('本役満',ron?20:10);else if(pay.tier===8)add('5倍満',10);else if(pay.tier===7)add('数え役満',5);else if(pay.tier===6)add('三倍満',3);
-  const white=!!r.pocchiAs&&hand._zimo==='z0'&&hand.lizhi,allFlowers=[1,2,3,4].every(n=>flowers.includes('f'+n)||indicators.includes('f'+n)),fourNorth=north+indicators.filter(t=>normal(t)==='z4').length>=4;
+  const white=!!r.pocchiAs&&Object.values(POCCHI).includes(hand._zimo)&&hand.lizhi,allFlowers=[1,2,3,4].every(n=>flowers.includes('f'+n)||indicators.includes('f'+n)),fourNorth=north+indicators.filter(t=>normal(t)==='z4').length>=4;
   return {...r,fu:30,han,yaku,pay,lines,eff,tiles:a,physical:physical.toString(),white,extraUra,gold,allFlowers,fourNorth,diceEligible:!!r.damanguan||pay.tier===8||fourNorth||allFlowers||gold===4||last||white,override:north===4&&flowers.length===8?200:flowers.length===8||fourNorth&&allFlowers?100:0};
  }
  function alice({tiles,wall,mode='alice',open=false,winter=1,guarantee=0}){const reveals=[];let chips=0,index=0,safety=guarantee;const tulip=mode==='tulip'||winter>=2,width=mode==='tulip'&&winter>=2?2:1,mult=tulip?1:open?1:2;
@@ -3604,8 +3611,10 @@ module.exports=function(E){
   while(index+width<=wall.length){const group=wall.slice(index,index+width);index+=width;const hits=group.reduce((n,t)=>n+hit(t),0);reveals.push({tiles:group,hits});chips+=hits*mult;if(!hits){if(safety)safety--;else break;}}
   return {chips,reveals,mode:tulip?'チューリップ':'アリス',multiplier:mult};
  }
+ function oneDie(rng=Math.random){const n=1+Math.floor(rng()*6);return {chips:n,rolls:[[n]]};}
+ function twoDice(rng=Math.random){const rolls=[[1+Math.floor(rng()*6),1+Math.floor(rng()*6)]];return {chips:rolls[0][0]+rolls[0][1],rolls};}
  function dice(rng=Math.random){const rolls=[];let chips=0;for(let i=0;i<100;i++){const a=1+Math.floor(rng()*6),b=1+Math.floor(rng()*6),n=a===1&&b===1?20:a+b;rolls.push([a,b]);chips+=n;if(a!==b)break;}return {chips,rolls};}
- return {FLOWERS,DEFAULT_FLOWERS,VARIANTS,options,rule,makeWall,normal,counts,shanten,waits,sevenPairs,springDelta,effects,payments,score,alice,dice,dora};
+ return {FLOWERS,POCCHI,POCCHI_NAMES,DEFAULT_FLOWERS,VARIANTS,options,rule,makeWall,normal,counts,shanten,waits,sevenPairs,springDelta,effects,payments,score,alice,dice,oneDie,twoDice,dora};
 };
 
 }};const cache={};function require(id){if(cache[id])return cache[id].exports;const m=cache[id]={exports:{}};modules[id](m,m.exports,require);return m.exports;}globalThis.JewelOffline=require("offline/engine.js");})();
