@@ -34,8 +34,10 @@ function update(msg,p){
  if(msg.pingju)log('流局：'+msg.pingju.name);
 }
 function showWin(h,done,p){
+ if(h.openTrap)alert('手詰まり！\nオープンリーチの当たり牌しか切れないため、役満のロンとして精算します。');
+ if((h.chipDelta||[]).some(n=>n<=-10))alert('ごめんね');
  winContinuation=done;
- $('win-title').textContent=names[p.model.player_id[h.l]]+' '+(h.baojia===null?'ツモ':'ロン');
+ $('win-title').textContent=(h.openTrap?'手詰まり！ オープンリーチへ放銃 ／ ':'')+names[p.model.player_id[h.l]]+' '+(h.baojia===null?'ツモ':'ロン');
  $('win-points').textContent=h.defen.toLocaleString()+'点 / '+(h.damanguan?'役満'+(h.damanguan>1?' ×'+h.damanguan:''):(h.fanshu||0)+'翻 '+(h.fu||0)+'符');
  $('win-hand').replaceChildren();$('win-melds').replaceChildren();
  const hand=E.M.Shoupai.fromString(h.shoupai);for(const t of handTiles(hand))$('win-hand').append(tile(t));

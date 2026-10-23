@@ -68,17 +68,32 @@ function transfer(chips,winner,loser,n) {
  if(loser===null){for(let id=0;id<4;id++)if(id!==winner){chips[id]-=n;chips[winner]+=n;}}
  else{chips[loser]-=n;chips[winner]+=n;}
 }
+function openTargets(model,rules,self,tile,canRon=()=>true){
+ const targets=[];for(let l=0;l<4;l++)if(l!==self&&model.openRiichi?.[l]&&canRon(l)){
+  const h=model.shoupai[l],waits=M.Util.tingpai(Physical.normalized(h))||[];
+  if((model.he[l]?._pai||[]).some(p=>waits.includes(M.Shoupai.normal_pai(p).slice(0,2))))continue;
+  const r=M.Util.hule(h,tile.slice(0,2)+'_+=-'[(4+self-l)%4],M.Util.hule_param({rule:rules,menfeng:l,zhuangfeng:model.zhuangfeng||0,lizhi:3}));if(r?.defen)targets.push(l);
+ }return targets;
+}
 class Game extends M.Game {
  constructor(players,done,extra={}) {
   super(players,done,rule({unlockedYaku:UNLOCK_YAKU[Math.floor(Math.random()*UNLOCK_YAKU.length)],...extra}),'宝石麻雀 — Offline');
   this._openRiichi=[false,false,false,false];this.chips=[0,0,0,0];this.busted=new Set();this.bonusLog=[];
  }
+ qipai(shan){this._openTrap=false;this._trapTargets=[];return super.qipai(shan);}
+ dapai(tile){
+  const m=this.model,view={...m,openRiichi:this._openRiichi},legal=this.get_dapai(),targets=t=>openTargets(view,this._rule,m.lunban,t,l=>this._neng_rong[l]);
+  this._openTrap=!!legal?.length&&!this.allow_hule()&&!this.get_gang_mianzi()?.length&&legal.every(t=>targets(t).length>0);
+  this._trapTargets=this._openTrap?targets(tile):[];
+  return super.dapai(tile);
+ }
+ reply_dapai(){if(this._openTrap)for(const l of this._trapTargets)if(this.allow_hule(l))this._reply[this.model.player_id[l]]={hule:'-'};return super.reply_dapai();}
  call_players(type,msg,timeout){if(!['hule','jieju'].includes(type)&&this._openRiichi?.some(Boolean)){const exposed={};for(let l=0;l<4;l++)if(this._openRiichi[l])exposed[l]=this.model.shoupai[l].toString();for(const m of msg)m.openHands=exposed;}return super.call_players(type,msg,timeout);}
  add_paipu(msg) {
   if(msg.qipai)msg.qipai.chipBalances=this.chips.slice();
   if(msg.hule){
    const before=this.chips.slice();
-   const h=msg.hule, ids=this.model.player_id, winner=ids[h.l], loser=h.baojia===null?null:ids[h.baojia];
+   const h=msg.hule;h.openTrap=!!this._openTrap&&h.baojia!==null;const ids=this.model.player_id, winner=ids[h.l], loser=h.baojia===null?null:ids[h.baojia];
    h.pocchiAmethyst=this._rule.pocchiAmethyst;
    h.indicators=this.model.shan.baopai;
    h.garnetUra=this.model.shan.fubaopai || [];
@@ -110,7 +125,7 @@ function saveResult(storage,id,results) {
  for(const r of results){const t=record.totals[r.id]||{rankChips:0,bonusChips:0,games:0};record.totals[r.id]={rankChips:t.rankChips+r.rankChips,bonusChips:t.bonusChips+r.bonusChips,games:t.games+1};}
  record.games.push({id,at:new Date().toISOString(),results});storage.setItem(key,JSON.stringify(record));return record;
 }
-module.exports={M,J,Physical,UNLOCK_YAKU,indicatorNumber,garnetValue,rule,actions,cpu,Player,Game,bonus,transfer,settle,saveResult};
+module.exports={M,J,Physical,UNLOCK_YAKU,indicatorNumber,garnetValue,rule,actions,cpu,openTargets,Player,Game,bonus,transfer,settle,saveResult};
 module.exports.Sanma=require("offline/sanma/index.js")(module.exports);
 
 },
@@ -1398,6 +1413,7 @@ module.exports = class Game {
         let param = {
             rule:           this._rule,
             jewelChoice:    this._reply[model.player_id[menfeng]]?.jewelChoice,
+            openRon:        !!rongpai && !!this._openRiichi[menfeng],
             zhuangfeng:     model.zhuangfeng,
             menfeng:        menfeng,
             hupai: {
@@ -3110,6 +3126,7 @@ function hule(shoupai, rongpai, param) {
         let hudi  = get_hudi(mianzi, param.zhuangfeng, param.menfeng,
                              scoringRule);
         let hupai = get_hupai(mianzi, hudi, pre_hupai, post_hupai, param.rule);
+        if(param.openRon && rongpai)hupai=[{name:'オープンリーチ放銃',fanshu:'*'},...hupai.filter(y=>typeof y.fanshu==='string')];
         let rv    = get_defen(hudi.fu, hupai, rongpai, param);
         rv.blackChips=Jewel.blackChips(Jewel.rawTiles(physical.toString()).map(p=>Majiang.Shoupai.normal_pai(p)),mianzi);
         rv.carnelianChoice=rv.carnelianChoice||null;
@@ -3128,6 +3145,7 @@ function hule_param(param = {}) {
     let rv = {
         rule:           param.rule       ?? Majiang.rule(),
         jewelChoice:    param.jewelChoice,
+        openRon:        param.openRon ?? false,
         zhuangfeng:     param.zhuangfeng ?? 0,
         menfeng:        param.menfeng    ?? 1,
         hupai: {
@@ -3432,12 +3450,21 @@ module.exports=function(M,J){
   }
   const result={value,n,ukeire};c.cache.set(key,result);return result;
  }
+ function openDanger(c,t){
+  return c.threats.filter(l=>c.model.openRiichi?.[l]).reduce((n,l)=>{
+   const h=c.model.shoupai[l];
+   // This hand is public only after an open declaration. Never inspect closed hands.
+   if((c.model.he?.[l]?._pai||[]).some(p=>normal(p)===normal(t)))return n;
+   const r=M.Util.hule(h,t.slice(0,2)+'_+=-'[(4+c.p._menfeng-l)%4],M.Util.hule_param({rule:c.p._rule,menfeng:l,zhuangfeng:c.model.zhuangfeng||0,lizhi:3}));
+   return n+(r?.defen?1:0);
+  },0);
+ }
  function danger(c,t){
   t=normal(t);return c.threats.reduce((sum,l)=>sum+analyzeDefense({tile:t,visible:c.visible,river:(c.model.he?.[l]?._pai||[]).map(normal),concealedTiles:13-3*(c.model.shoupai?.[l]?._fulou?.length||0)}).score,0);
  }
  function chooseDiscard(c,options){let best=null,value=-Infinity;
   for(const a of options){const h=c.p.shoupai.clone().dapai(a.reply.dapai),e=evaluate(c,h),risk=danger(c,a.reply.dapai);
-   const v=e.value-risk*(e.n>0?500:100);if(v>value){value=v;best=a;}
+   const v=e.value-risk*(e.n>0?500:100)-openDanger(c,a.reply.dapai)*1000000;if(v>value){value=v;best=a;}
   }return best;
  }
  function openYaku(c,h){
@@ -3500,14 +3527,14 @@ module.exports=function(E){
   take(id){while(this.wall.length){const t=this.wall.pop();if(t[0]==='f'){this.spring(id,t);continue;}return t;}return null;}
   startRound(){this.roundLedgerStart=this.ledger.length;this.phase='dealing';this.rounds++;this.draws=[0,0,0];this.shuba=[false,false,false];this.riichiDeposit=[0,0,0];this.discardedDora=[false,false,false];this.rule['場風牌']=[this.round>3?2:1];this.anyCalls=false;this.pao=[{}, {}, {}];this.kans=0;this.hands=[];this.rivers=[[],[],[]];this.flowers=[[],[],[]];this.north=[0,0,0];this.ippatsu=[false,false,false];this.openRiichi=[false,false,false];this.furiten=[false,false,false];this.mustDiscard=false;this.rinshan=false;this.last=null;this.roundStartPoints=this.points.slice();this.roundStartChips=this.chips.slice();const wall=S.makeWall(this.options,this.rng);this.dead=wall.splice(0,4);this.kanReserve=this.options.house.unlimitedKan?wall.splice(0,2):[];this.wall=wall;for(let id=0;id<3;id++){const tiles=[];for(let j=0;j<13;j++)tiles.push(this.take(id));this.hands.push(new M.Shoupai(tiles));}this.turn=this.dealer;this.draw();}
   draw(rinshan=false,air=false){this.rinshan=rinshan;this.mustDiscard=false;const t=this.take(this.turn);if(!t)return this.drawnGame();if(!this.hands[this.turn].lizhi)this.furiten[this.turn]=false;this.hands[this.turn].zimo(t);if(!air)this.draws[this.turn]++;this.phase='turn';}
-  score(id,hand=this.hands[id],ron=null,{honba=this.honba,rob=false,preview=false}={}){return S.score({hand,ron,seat:(id-this.dealer+3)%3,rule:this.rule,indicators:this.indicators,ura:preview?[]:this.ura,north:this.north[id],flowers:this.flowers[id],flowerRules:this.options.flowerRules,ippatsu:this.ippatsu[id],rinshan:!ron&&this.rinshan,last:this.wall.length===0,honba,qianggang:rob,tianhu:!ron&&!hand.lizhi&&!this.anyCalls&&this.draws[id]===1&&!this.rivers[id].length?(id===this.dealer?1:2):0,house:this.options.house,roundWind:this.round>3?1:0,discardedDora:this.discardedDora[id],openPush:!!ron&&this.options.house.openPushYakuman&&this.openRiichi[id]&&!!this.hands[this.last?.from]?.lizhi,openRiichi:this.openRiichi[id]});}
+  score(id,hand=this.hands[id],ron=null,{honba=this.honba,rob=false,preview=false}={}){return S.score({hand,ron,seat:(id-this.dealer+3)%3,rule:this.rule,indicators:this.indicators,ura:preview?[]:this.ura,north:this.north[id],flowers:this.flowers[id],flowerRules:this.options.flowerRules,ippatsu:this.ippatsu[id],rinshan:!ron&&this.rinshan,last:this.wall.length===0,honba,qianggang:rob,tianhu:!ron&&!hand.lizhi&&!this.anyCalls&&this.draws[id]===1&&!this.rivers[id].length?(id===this.dealer?1:2):0,house:this.options.house,roundWind:this.round>3?1:0,discardedDora:this.discardedDora[id],openPush:!!ron&&this.openRiichi[id]&&(!!this.last?.openTrap||this.options.house.openPushYakuman&&!!this.hands[this.last?.from]?.lizhi),openRiichi:this.openRiichi[id]});}
   canRon(id){if(this.furiten[id]||this.phase==='nuki'&&this.north[id]>0)return false;const wait=S.waits(this.hands[id]);if(this.rivers[id].some(t=>wait.includes(S.normal(t))))return false;const r=this.score(id,this.hands[id],this.last.tile+signedDirection(this.last.from,id),{rob:this.phase==='rob',preview:true});if(!r)return false;if(this.phase==='robClosed'&&!r.yaku.some(y=>/国士無双/.test(y.name)))return false;if(this.phase==='nuki'&&!r.yaku.some(y=>/国士無双|四喜|字一色|萬子混一色/.test(y.name)))return false;return true;}
   isBust(n){return this.options.house.bustAtZero?n<=0:n<0;}
   shouldFinish(winners,busted){if(busted.length)return true;const v=this.options.house,top=[0,1,2].sort((a,b)=>this.points[b]-this.points[a]||a-b)[0];if(this.round===3&&v.agariYame&&winners.includes(this.dealer)&&top===this.dealer&&(!v.southExtension||this.points[top]>=40000))return true;if(v.southExtension)return this.round>=3&&!this.repeat&&this.points[top]>=40000||this.round>3&&this.points[top]>=40000;return this.round===3&&!this.repeat;}
   kanOptions(id){const h=this.hands[id];if(this.kans>=4&&!this.options.house.unlimitedKan||this.wall.length<3&&!(this.options.house.unlimitedKan&&(this.wall.length===1||this.wall.length===2&&this.kanReserve.length===2)))return [];let ks=h.get_gang_mianzi()||[];if(h.lizhi){const before=S.waits(h.clone().dapai(h._zimo)).sort().join(',');ks=ks.filter(m=>/^[mpsz][0-9A-C]{4}$/.test(m)&&S.waits(h.clone().gang(m)).sort().join(',')===before);}return ks;}
   actions(){const id=this.actor,h=this.hands[id],out=[],add=(label,reply)=>out.push({label,reply});if(this.phase==='roundEnd'){add(this.finished?'対局結果へ':'次の局へ',{next:true});return out;}if(this.phase==='finished')return out;
    if(['react','rob','robClosed','nuki'].includes(this.phase)){
-    const ron=this.canRon(id);if(ron)add('ロン',{win:true});if(ron&&h.lizhi&&!this.options.house.riichiPass)return out;
+    const ron=this.canRon(id);if(ron)add('ロン',{win:true});if(ron&&this.last?.openTrap)return out;if(ron&&h.lizhi&&!this.options.house.riichiPass)return out;
     if(this.phase==='react'&&!h.lizhi){const t=this.last.tile+signedDirection(this.last.from,id);for(const m of h.get_peng_mianzi(t)||[])add('ポン',{pon:m});if((this.kans<4||this.options.house.unlimitedKan)&&(this.wall.length>=3||this.options.house.unlimitedKan&&(this.wall.length===1||this.wall.length===2&&this.kanReserve.length===2)))for(const m of h.get_gang_mianzi(t)||[])add('大明カン',{kan:m});}
     add('見送り',{pass:true});return out;
    }
@@ -3515,8 +3542,9 @@ module.exports=function(E){
    const draw=h._zimo?.length===2;
    if(draw){const r=this.score(id,h,null,{preview:true});if(r){add('ツモ',{win:true});if(h.lizhi)return out;}}
    if(draw){if(h._bingpai.z[4]&&(!h.lizhi||S.normal(h._zimo)==='z4'))add('北を抜く',{nuki:true});for(const m of this.kanOptions(id))add('カン',{kan:m});}
-   const v=this.options.house;for(const t of h.get_dapai()||[]){if(v.northExtended&&S.normal(t)==='z4')continue;if(v.openPushYakuman&&!h.lizhi&&[0,1,2].some(other=>other!==id&&this.openRiichi[other]&&!this.furiten[other]&&!this.rivers[other].some(p=>S.waits(this.hands[other]).includes(S.normal(p)))&&this.score(other,this.hands[other],t.slice(0,2)+signedDirection(id,other),{preview:true})))continue;add('打牌 '+t,{discard:t});if(draw&&!h.lizhi&&h.menqian&&this.points[id]>=1000&&(v.lastRiichi||this.wall.length>=3)&&S.shanten(h.clone().dapai(t))===0&&S.waits(h.clone().dapai(t)).length){const ready=h.clone().dapai(t);ready._lizhi=true;const waits=S.waits(ready);if(!waits.some(p=>S.score({hand:ready.clone().zimo(p),seat:(id-this.dealer+3)%3,rule:this.rule,indicators:this.indicators,north:this.north[id],flowers:this.flowers[id],flowerRules:this.options.flowerRules,house:v})))continue;const forcedOpen=!v.tableRiichi&&(this.hands.filter(h=>h.lizhi).length===2||this.rivers[id].some(p=>waits.includes(S.normal(p)))||waits.includes(S.normal(t))),canOpen=!v.tableRiichi||this.hands.filter(h=>h.lizhi).length<2;
+   const blocked=[],v=this.options.house;for(const t of h.get_dapai()||[]){if(v.northExtended&&S.normal(t)==='z4')continue;if(v.openPushYakuman&&!h.lizhi&&[0,1,2].some(other=>other!==id&&this.openRiichi[other]&&!this.furiten[other]&&!this.rivers[other].some(p=>S.waits(this.hands[other]).includes(S.normal(p)))&&this.score(other,this.hands[other],t.slice(0,2)+signedDirection(id,other),{preview:true}))){blocked.push({label:'手詰まり：'+t,reply:{discard:t}});continue;}add('打牌 '+t,{discard:t});if(draw&&!h.lizhi&&h.menqian&&this.points[id]>=1000&&(v.lastRiichi||this.wall.length>=3)&&S.shanten(h.clone().dapai(t))===0&&S.waits(h.clone().dapai(t)).length){const ready=h.clone().dapai(t);ready._lizhi=true;const waits=S.waits(ready);if(!waits.some(p=>S.score({hand:ready.clone().zimo(p),seat:(id-this.dealer+3)%3,rule:this.rule,indicators:this.indicators,north:this.north[id],flowers:this.flowers[id],flowerRules:this.options.flowerRules,house:v})))continue;const forcedOpen=!v.tableRiichi&&(this.hands.filter(h=>h.lizhi).length===2||this.rivers[id].some(p=>waits.includes(S.normal(p)))||waits.includes(S.normal(t))),canOpen=!v.tableRiichi||this.hands.filter(h=>h.lizhi).length<2;
     if(!forcedOpen){add('リーチ '+t,{discard:t,riichi:true});if(v.shuba&&this.points[id]>=5000)add('シュバリーチ '+t,{discard:t,riichi:true,shuba:true});}if(canOpen&&this.points[id]>=v.openCost){add('オープンリーチ '+t,{discard:t,riichi:true,open:true});if(v.shuba&&this.points[id]>=6000)add('オープン＋シュバ '+t,{discard:t,riichi:true,open:true,shuba:true});}}}
+   if(!out.length&&blocked.length)out.push(...blocked);
    return out;
   }
   act(reply){const legal=this.actions().find(a=>JSON.stringify(a.reply)===JSON.stringify(reply));if(!legal)throw Error('現在は選べない操作です');const id=this.actor,h=this.hands[id];
@@ -3525,7 +3553,7 @@ module.exports=function(E){
    if(reply.win){this.win([id],null);return;}
    if(reply.nuki){const t=S.normal(h._zimo)==='z4'?h._zimo:'z4';if(this.options.house.nukiRon){this.beginResponses(id,t,'nuki');return;}h.dapai(t);this.north[id]++;this.log.unshift(this.names[id]+'：北を抜きました');this.draw(false,this.options.house.northExtended);return;}
    if(reply.kan){if(/[+=-]/.test(reply.kan)){this.beginResponses(id,reply.kan[0]+reply.kan.slice(-1),'rob',reply.kan);return;}if(this.options.house.kokushiRobClosed){this.beginResponses(id,reply.kan[0]+reply.kan[1],'robClosed',reply.kan);return;}this.commitKan(id,reply.kan);return;}
-   if(reply.discard){const was=h.lizhi,t=reply.discard;h.dapai(t+(reply.riichi?'*':''));if(reply.riichi){const cost=reply.shuba?(reply.open?6000:5000):reply.open?this.options.house.openCost:1000;this.riichiDeposit[id]=cost;this.points[id]-=cost;this.sticks+=cost/1000;this.shuba[id]=!!reply.shuba;this.ippatsu[id]=true;this.openRiichi[id]=!!reply.open;this.log.unshift(this.names[id]+'：'+(reply.shuba?'シュバ':'')+(reply.open?'オープン':'')+'リーチ');}else if(was)this.ippatsu[id]=false;if(!was&&(this.indicators.some(p=>S.dora(p)===S.normal(t))||/^[ps][0A]/.test(t)))this.discardedDora[id]=true;this.rivers[id].push(t.slice(0,2)+(reply.riichi?'*':''));this.mustDiscard=false;this.beginResponses(id,t.slice(0,2),'react',null,!!reply.riichi);}
+   if(reply.discard){const choices=this.actions(),discards=choices.filter(a=>a.reply.discard);const openTrap=discards.length>0&&!choices.some(a=>a.reply.win||a.reply.kan||a.reply.nuki)&&discards.every(a=>[0,1,2].some(l=>l!==id&&this.openRiichi[l]&&!this.furiten[l]&&!this.rivers[l].some(p=>S.waits(this.hands[l]).includes(S.normal(p)))&&this.score(l,this.hands[l],a.reply.discard.slice(0,2)+signedDirection(id,l),{preview:true})));const was=h.lizhi,t=reply.discard;h.dapai(t+(reply.riichi?'*':''));if(reply.riichi){const cost=reply.shuba?(reply.open?6000:5000):reply.open?this.options.house.openCost:1000;this.riichiDeposit[id]=cost;this.points[id]-=cost;this.sticks+=cost/1000;this.shuba[id]=!!reply.shuba;this.ippatsu[id]=true;this.openRiichi[id]=!!reply.open;this.log.unshift(this.names[id]+'：'+(reply.shuba?'シュバ':'')+(reply.open?'オープン':'')+'リーチ');}else if(was)this.ippatsu[id]=false;if(!was&&(this.indicators.some(p=>S.dora(p)===S.normal(t))||/^[ps][0A]/.test(t)))this.discardedDora[id]=true;this.rivers[id].push(t.slice(0,2)+(reply.riichi?'*':''));this.mustDiscard=false;this.beginResponses(id,t.slice(0,2),'react',null,!!reply.riichi);this.last.openTrap=!!openTrap;}
   }
   beginResponses(from,tile,phase,kan=null,riichi=false){this.last={from,tile,kan,riichi};this.phase=phase;this.responders=[(from+1)%3,(from+2)%3];this.responses=[];this.responseIndex=0;}
   commitKan(id,m,open=false){this.anyCalls=true;if(!open)this.hands[id].gang(m);if(this.options.house.unlimitedKan&&this.wall.length===1){this.ippatsu=[false,false,false];this.log.unshift('海底直前のカン・嶺上を引かず流局');this.drawnGame();return;}this.dead.push(...(this.wall.length===2&&this.kanReserve.length===2?this.kanReserve.splice(0,2):[this.wall.shift(),this.wall.shift()]));this.kans++;this.ippatsu=[false,false,false];this.turn=id;this.log.unshift(this.names[id]+'：カン');this.draw(true);}
@@ -3551,13 +3579,13 @@ module.exports=function(E){
    wins.push({id,loser,...result,received:this.points[id]-before[id]});
   }
   const busted=[];for(let id=0;id<3;id++)if(this.isBust(this.points[id])){busted.push(id);for(const winner of (v.tableTobi?[tobiCauses.get(id)]:winners))if(winner!==undefined&&winner!==id)this.chipPay(winner,id,v.tableTobi?3:2,'トビ賞');}
-  this.repeat=winners.includes(this.dealer);this.nextHonba=this.repeat?this.honba+1:0;this.finished=this.shouldFinish(winners,busted);this.summary={type:'win',wins,busted,pointsDelta:this.points.map((n,i)=>n-before[i]),chipsDelta:this.chips.map((n,i)=>n-beforeChips[i]),roundChips:this.chips.map((n,i)=>n-this.roundStartChips[i])};this.summary.ledger=this.ledger.slice(this.roundLedgerStart);this.phase='roundEnd';this.log.unshift(winners.map(id=>this.names[id]).join('・')+'の和了');if(this.finished)this.finish();
+  this.repeat=winners.includes(this.dealer);this.nextHonba=this.repeat?this.honba+1:0;this.finished=this.shouldFinish(winners,busted);this.summary={openTrap:!!this.last?.openTrap,type:'win',wins,busted,pointsDelta:this.points.map((n,i)=>n-before[i]),chipsDelta:this.chips.map((n,i)=>n-beforeChips[i]),roundChips:this.chips.map((n,i)=>n-this.roundStartChips[i])};this.summary.ledger=this.ledger.slice(this.roundLedgerStart);this.phase='roundEnd';this.log.unshift(winners.map(id=>this.names[id]).join('・')+'の和了');if(this.finished)this.finish();
   }
   drawnGame(){if(this.options.house.nagashi){const ids=[0,1,2].filter(id=>this.rivers[id].length&&!this.hands[id].lizhi&&!this.hands[id]._fulou.length&&this.rivers[id].every(p=>!p.endsWith('-')&&(S.normal(p)[0]==='z'||/[19]/.test(S.normal(p)[1]))));if(ids.length){const result={};for(const id of ids){const eff=S.effects(this.flowers[id],this.indicators);result[id]={river:this.rivers[id].slice(),damanguan:1,han:0,yaku:[{name:'流し役満',fanshu:'*'}],pay:S.payments(0,1,this.options.flowerRules.summer==='rank'?eff[1]:0,id===this.dealer,true,id===ids[0]?this.honba:0,this.options.house),lines:[{label:'本役満',amount:10},...(this.north[id]?[{label:'抜き北',amount:this.north[id]}]:[])],eff,tiles:S.counts(this.hands[id]),physical:this.hands[id].toString(),diceEligible:true,diceRuns:1,allFlowers:[1,2,3,4].every(n=>this.flowers[id].includes('f'+n)),fourNorth:this.north[id]===4,override:0,allPayBonus:this.options.house.stackFourSets&&this.north[id]===4&&[1,2,3,4].every(n=>this.flowers[id].includes('f'+n))?100:0};}this.win(ids,null,result);return;}}const tenpai=this.hands.map(h=>S.shanten(h)===0),n=tenpai.filter(Boolean).length,before=this.points.slice();if(n&&n<3)for(let i=0;i<3;i++)this.points[i]+=tenpai[i]?this.options.house.notenPool/n:-this.options.house.notenPool/(3-n);this.repeat=true;this.nextHonba=this.honba+1;this.finished=this.points.some(n=>this.isBust(n));this.summary={type:'draw',tenpai,pointsDelta:this.points.map((n,i)=>n-before[i]),roundChips:this.chips.map((n,i)=>n-this.roundStartChips[i])};this.summary.ledger=this.ledger.slice(this.roundLedgerStart);this.phase='roundEnd';this.log.unshift('流局・親は連荘');if(this.finished)this.finish();}
   finish(){if(this.sticks){const top=[0,1,2].sort((a,b)=>this.points[b]-this.points[a]||a-b)[0];this.points[top]+=this.sticks*1000;this.sticks=0;}const order=[0,1,2].sort((a,b)=>this.points[b]-this.points[a]||a-b),second=this.points[order[1]]>=40000?0:-10,uma=this.options.house.fixedUma?[20,0,-20]:[-second+10,second,-10];this.results=order.map((id,index)=>({id,points:this.points[id],rank:index+1,rankChips:uma[index],bonusChips:this.chips[id],score:this.options.house.rankOnly?0:(this.points[id]-40000)/1000+uma[index]+(index===0?15:0)}));}
  }
  function cpu(game){const id=game.actor,options=game.actions();if(!options.length)return null;const win=options.find(a=>a.reply.win);if(win)return win.reply;const north=options.find(a=>a.reply.nuki);if(north)return north.reply;const discards=options.filter(a=>a.reply.discard);if(discards.length){const visible=new Map(),add=t=>{t=S.normal(t);visible.set(t,(visible.get(t)||0)+1);};S.counts(game.hands[id]).forEach(add);for(let l=0;l<3;l++){for(const t of game.rivers[l])if(!t.endsWith('-'))add(t);if(l!==id)for(const m of game.hands[l]._fulou)J.rawTiles(m).forEach(add);}game.indicators.filter(t=>t[0]!=='f').forEach(add);for(let l=0;l<3;l++)for(let n=0;n<game.north[l];n++)add('z4');const left=t=>Math.max(0,4-(visible.get(S.normal(t))||0));let best=discards[0],value=-Infinity;
-   for(const a of discards){const h=game.hands[id].clone().dapai(a.reply.discard),n=S.shanten(h),wait=S.waits(h);let v=-n*1000+wait.reduce((n,t)=>n+left(t),0)*6+J.rawTiles(h.toString()).reduce((n,t)=>n+(t==='p0'||t==='s0'?8:t==='pA'||t==='sA'?4:0),0)+(a.reply.riichi?35:0);for(let l=0;l<3;l++)if(l!==id&&game.hands[l].lizhi)v-=analyzeDefense({tile:S.normal(a.reply.discard),visible,river:game.rivers[l].map(S.normal)}).score*(n>0?500:100);if(v>value){value=v;best=a;}}
+   for(const a of discards){const h=game.hands[id].clone().dapai(a.reply.discard),n=S.shanten(h),wait=S.waits(h);let v=-n*1000+wait.reduce((n,t)=>n+left(t),0)*6+J.rawTiles(h.toString()).reduce((n,t)=>n+(t==='p0'||t==='s0'?8:t==='pA'||t==='sA'?4:0),0)+(a.reply.riichi?35:0);for(let l=0;l<3;l++)if(l!==id&&game.hands[l].lizhi)v-=analyzeDefense({tile:S.normal(a.reply.discard),visible,river:game.rivers[l].map(S.normal)}).score*(n>0?500:100);for(let l=0;l<3;l++)if(l!==id&&game.openRiichi[l]&&!game.furiten[l]&&!game.rivers[l].some(p=>S.waits(game.hands[l]).includes(S.normal(p)))&&game.score(l,game.hands[l],a.reply.discard.slice(0,2)+signedDirection(id,l),{preview:true}))v-=1000000;if(v>value){value=v;best=a;}}
    return best.reply;
   }
   // Keep the first version conservative: honor pon only when shanten improves after discard.
