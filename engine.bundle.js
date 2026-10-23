@@ -11,7 +11,7 @@ function rule(extra={}) {
  const legacy={white:'topaz','amethyst-white':'amethyst-white',gold:'gold-pocchi',gane:'gane-pocchi'};
  const ids=extra.gemSelection||['lapis','amethyst-p','tourmaline',...modes.map(x=>legacy[x]||x)];
  const gemTiles=J.configure(ids);
- return M.rule({openRiichi:true,openRiichiCost:2000,'場数':1,'延長戦方式':0,'本場点':1500,'切り上げ満貫あり':true,'場風牌':[1,3],'赤牌':{m:0,p:0,s:0},jewelBonus:true,fullJewel:true,...extra,
+ return M.rule({openRiichi:true,openRiichiCost:2000,'カンドラ後乗せ':false,'場数':1,'延長戦方式':0,'本場点':1500,'切り上げ満貫あり':true,'場風牌':[1,3],'赤牌':{m:0,p:0,s:0},jewelBonus:true,fullJewel:true,...extra,
   gemSelection:ids.slice(),gemTiles,pocchiModes:modes.slice(),whitePocchi:ids.some(x=>['topaz','amethyst-white'].includes(x)),pocchiAmethyst:ids.includes('amethyst-white'),goldPocchi:ids.includes('gold-pocchi'),ganePocchi:ids.includes('gane-pocchi')});
 }
 function actions(p,msg) {
@@ -1349,13 +1349,13 @@ module.exports = class Game {
         this._yifa     = [0,0,0,0];
 
         let zimo = model.shan.gangzimo();
+        // Reveal the new indicator before delivering or recording the rinshan draw.
+        if (! this._rule['カンドラ後乗せ'] ||
+            this._gang.match(/^[mpsz][0-9A]{4}$/)) this.kaigang();
         model.shoupai[model.lunban].zimo(zimo);
 
         let paipu = { gangzimo: { l: model.lunban, p: zimo } };
         this.add_paipu(paipu);
-
-        if (! this._rule['カンドラ後乗せ'] ||
-            this._gang.match(/^[mpsz][0-9A]{4}$/)) this.kaigang();
 
         let msg = [];
         for (let l = 0; l < 4; l++) {
@@ -3582,12 +3582,14 @@ module.exports=function(E){
   // The crossing winner is still recorded separately for the tobi award.
   const tobiDouble=v.tobiDouble&&this.points.some(n=>this.isBust(n));
   for(const {id,result,received} of settlements){
-   const type=result.white?Object.keys(S.POCCHI).find(t=>S.POCCHI[t]===result.pocchi):'normal',compound=v.doubleYakuman&&result.damanguan===2?2:1,factor=({normal:1,reverse:-1,double:2,reverseDouble:-2})[type]*(tobiDouble?2:1)*compound;result.chipFactor=factor;result.compoundFactor=compound;result.shubaFactor=this.shuba[id]?2:1;result.uraFlowers=v.flowerUra?this.ura.filter(t=>t[0]==='f'):[];result.tobiDouble=!!tobiDouble;result.pocchiType=type;const diceLoser=loser!==null&&v.ronDicePayer==='discarder'?loser:null;result.diceLoser=diceLoser;const award=(loser,n,label)=>this.chipPay(id,loser,n*factor,label),awardDice=(n,label)=>this.chipPay(id,diceLoser,n*factor/compound,label);
+   const chipLedgerStart=this.ledger.length;
+   const type=result.white?Object.keys(S.POCCHI).find(t=>S.POCCHI[t]===result.pocchi):'normal',compound=v.doubleYakuman&&result.damanguan===2?2:1,factor=({normal:1,reverse:-1,double:2,reverseDouble:-2})[type]*(tobiDouble?2:1)*compound;result.chipFactor=factor;result.compoundFactor=compound;result.shubaFactor=this.shuba[id]?2:1;result.receiptMultiplier=Math.abs(factor)*(factor>0?result.shubaFactor:1);result.uraFlowers=v.flowerUra?this.ura.filter(t=>t[0]==='f'):[];result.tobiDouble=!!tobiDouble;result.pocchiType=type;const diceLoser=loser!==null&&v.ronDicePayer==='discarder'?loser:null;result.diceLoser=diceLoser;const award=(loser,n,label)=>this.chipPay(id,loser,n*factor,label),awardDice=(n,label)=>this.chipPay(id,diceLoser,n*factor/compound,label);
    if(result.override){award(null,result.override,'四北四華・八華');result.lines=[{label:'四北四華・八華（他祝儀なし）',amount:result.override}];}
    else{if(result.eff[3]&&['alice','tulip'].includes(this.options.flowerRules.winter)){result.alice=S.alice({tiles:result.tiles,wall:this.wall,mode:this.options.flowerRules.winter,winter:result.eff[3],open:!this.hands[id].menqian,guarantee:(this.ippatsu[id]?1:0)+(result.white?1:0)});if(result.alice.chips)result.lines.push({label:result.alice.mode,amount:result.alice.chips});}
     if(result.eff[0]&&this.options.flowerRules.spring==='tulip'&&this.hands[id].lizhi){result.springTulip=v.tableTulip?S.tableTulip({tiles:result.tiles,flowers:this.flowers[id],indicators:this.indicators.concat(v.flowerUra?this.ura:[]),wall:this.wall}):S.alice({tiles:result.tiles,wall:this.wall,mode:'tulip',winter:result.eff[0]});result.lines.push({label:'春・リーチ和了チューリップ',amount:result.springTulip.chips});}
     award(loser,result.lines.reduce((n,l)=>n+l.amount,0),'和了祝儀');result.extraDice=[];if(v.separateDice){const reasons=[];if(result.damanguan)reasons.push('本役満・出目金');if(result.allFlowers)reasons.push('4華・出目金');if(result.fourNorth)reasons.push('4北・出目金');if(result.allStar)reasons.push('門前オールスター・出目金');if(v.instantPocchi&&result.white&&this.ippatsu[id])reasons.push('即ポッチ・出目金');for(let j=0;j<compound;j++)for(const label of reasons){const d=S.dice(this.rng);result.extraDice.push({...d,label});awardDice(d.chips,label);}}else if(result.diceEligible){result.dice={chips:0,rolls:[]};for(let j=0;j<compound;j++){const d=S.dice(this.rng);result.dice.chips+=d.chips;result.dice.rolls.push(...d.rolls);}awardDice(result.dice.chips,'サイコロチャンス');}if(result.eff[3]&&this.options.flowerRules.winter==='dice')for(let n=0;n<result.eff[3]*compound;n++){const d=S.oneDie(this.rng);result.extraDice.push({...d,label:'冬・サイコロ1個'});awardDice(d.chips,'冬・サイコロ1個');}if(result.white&&this.ippatsu[id]&&this.options.pocchiIppatsuDice){const d=S.twoDice(this.rng);result.extraDice.push({...d,label:'ポッチ一発・サイコロ2個'});award(diceLoser,d.chips,'ポッチ一発・サイコロ2個');}}
    if(result.allPayBonus){award(null,result.allPayBonus,'4華4北・天和地和の追加祝儀');result.allPayBonusReceived=result.allPayBonus*factor*(this.shuba[id]?2:1);}
+   result.chipTransfers=this.ledger.slice(chipLedgerStart).flatMap(entry=>entry.delta.flatMap((delta,other)=>other===entry.winner||!delta?[]:[{label:entry.label,from:delta<0?other:entry.winner,to:delta<0?entry.winner:other,amount:Math.abs(delta)}]));
    wins.push({id,loser,...result,received});
   }
   const busted=[];for(let id=0;id<3;id++)if(this.isBust(this.points[id])){busted.push(id);for(const winner of (v.tableTobi?[tobiCauses.get(id)]:winners))if(winner!==undefined&&winner!==id)this.chipPay(winner,id,v.tableTobi?3:2,'トビ賞');}
@@ -3632,7 +3634,7 @@ module.exports=function(E){
  const DEFAULT_FLOWERS={spring:'linked',summer:'rank',autumn:'dora',winter:'alice'};
  const VARIANTS={spring:['linked','fixed','tulip','off'],summer:['rank','han','off'],autumn:['dora','double','chips','off'],winter:['alice','tulip','dice','chips','off']};
  function options(extra={}){const flowerRules={...DEFAULT_FLOWERS,...extra.flowerRules};for(const [k,values]of Object.entries(VARIANTS))if(!values.includes(flowerRules[k]))throw Error('華の設定が不正です');if(extra.flowerCopies!==undefined&&![1,2].includes(extra.flowerCopies))throw Error('華は4枚または8枚です');if(extra.pocchiType&&!['normal','reverse','double','reverseDouble'].includes(extra.pocchiType))throw Error('ポッチの設定が不正です');const pocchiTypes=extra.pocchiTypes??(extra.whitePocchi===false?[]:[extra.pocchiType||'normal']);if(!Array.isArray(pocchiTypes)||pocchiTypes.length>4||new Set(pocchiTypes).size!==pocchiTypes.length||pocchiTypes.some(t=>!POCCHI[t]))throw Error('ポッチは各種類1枚・合計4枚までです');return {house:H.validate(extra.house),pocchiTypes,flowerCopies:1,whitePocchi:true,pocchiType:'normal',pocchiIppatsuDice:false,...extra,house:H.validate(extra.house),flowerRules};}
- function rule(house={}){const v=H.validate(house);const gemTiles={};for(const s of ['p','s'])for(const [ch,color,chips]of [['0','金',v.fiveSet==='mixed'?2:1],['A','赤',v.fiveSet==='mixed'?1:0]])gemTiles[s+ch]={id:'sanma-'+s+ch,name:color+'5'+s,base:s+'5',han:1,effect:'fixed',chips,pocchi:false};gemTiles.z0={id:'topaz',name:'白ポッチ',base:'z5',han:0,effect:'fixed',chips:0,pocchi:true};return M.rule({'配給原点':35000,'赤牌':{m:0,p:0,s:0},'切り上げ満貫あり':true,'役満の複合あり':v.doubleYakuman,'ダブル役満あり':false,'数え役満あり':true,'場風牌':[1],'ツモ番なしリーチあり':v.lastRiichi,'リーチ後暗槓許可レベル':2,gemTiles,gemSelection:[],jewelBonus:false,fullJewel:false});}
+ function rule(house={}){const v=H.validate(house);const gemTiles={};for(const s of ['p','s'])for(const [ch,color,chips]of [['0','金',v.fiveSet==='mixed'?2:1],['A','赤',v.fiveSet==='mixed'?1:0]])gemTiles[s+ch]={id:'sanma-'+s+ch,name:color+'5'+s,base:s+'5',han:1,effect:'fixed',chips,pocchi:false};gemTiles.z0={id:'topaz',name:'白ポッチ',base:'z5',han:0,effect:'fixed',chips:0,pocchi:true};return M.rule({'カンドラ後乗せ':false,'配給原点':35000,'赤牌':{m:0,p:0,s:0},'切り上げ満貫あり':true,'役満の複合あり':v.doubleYakuman,'ダブル役満あり':false,'数え役満あり':true,'場風牌':[1],'ツモ番なしリーチあり':v.lastRiichi,'リーチ後暗槓許可レベル':2,gemTiles,gemSelection:[],jewelBonus:false,fullJewel:false});}
  function makeWall(o,rng=Math.random){const v=H.validate(o.house),a=[];for(const s of ['m','p','s','z'])for(let n=1;n<=(s==='z'?7:9);n++){if(s==='m'&&n!==1&&n!==9)continue;for(let i=0;i<4;i++)a.push(s+((s==='p'||s==='s')&&n===5?(v.fiveSet==='mixed'?(i<2?'5':i===2?'A':'0'):(i<2?'0':'A')):s==='z'&&n===5&&i<o.pocchiTypes.length?POCCHI[o.pocchiTypes[i]][1]:n));}for(let f=1;f<=4;f++)for(let i=0;i<o.flowerCopies;i++)a.push('f'+f);for(let i=a.length-1;i>0;i--){const j=Math.floor(rng()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
  function counts(hand){return J.rawTiles(hand.toString()).map(normal);}
  function sevenPairs(hand){if(hand._fulou.length)return false;const a=counts(hand),c={};for(const t of a)c[t]=(c[t]||0)+1;return a.length===14&&Object.values(c).every(n=>n%2===0);}
