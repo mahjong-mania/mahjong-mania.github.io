@@ -53,7 +53,10 @@ class Player extends M.Player {
   this.applyOpenHands();this.onUpdate(this.message,this);
   const callback=this._callback;
   if(this.message.hule&&this.confirmWin){let replied=false;return this.confirmWin(this.message.hule,()=>{if(replied)return;replied=true;callback({});},this);}
-  const proceed=()=>{const opts=actions(this,this.message);if(!opts.length)return callback({});this.decide(opts,reply=>callback(reply||{}),this.message,this);};
+  // The base Player marks an offered winning discard as passed after this handler
+  // returns. Capture legal reactions before an asynchronous riichi popup yields.
+  const opts=actions(this,this.message);
+  const proceed=()=>{if(!opts.length)return callback({});this.decide(opts,reply=>callback(reply||{}),this.message,this);};
   if(this.message.dapai?.p.endsWith('*')&&this.confirmRiichi){let replied=false;return this.confirmRiichi(this.message.dapai,()=>{if(replied)return;replied=true;proceed();},this);}
   proceed();
  }
