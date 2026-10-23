@@ -3558,7 +3558,12 @@ module.exports=function(E){
   }
   beginResponses(from,tile,phase,kan=null,riichi=false){this.last={from,tile,kan,riichi};this.phase=phase;this.responders=[(from+1)%3,(from+2)%3];this.responses=[];this.responseIndex=0;}
   commitKan(id,m,open=false){this.anyCalls=true;if(!open)this.hands[id].gang(m);if(this.options.house.unlimitedKan&&this.wall.length===1){this.ippatsu=[false,false,false];this.log.unshift('海底直前のカン・嶺上を引かず流局');this.drawnGame();return;}this.dead.push(...(this.wall.length===2&&this.kanReserve.length===2?this.kanReserve.splice(0,2):[this.wall.shift(),this.wall.shift()]));this.kans++;this.ippatsu=[false,false,false];this.turn=id;this.log.unshift(this.names[id]+'：カン');this.draw(true);}
-  resolveResponses(){const wins=this.responses.filter(r=>r.reply.win).map(r=>r.id);if(wins.length){if(this.last.riichi){this.points[this.last.from]+=this.riichiDeposit[this.last.from];this.sticks-=this.riichiDeposit[this.last.from]/1000;this.ippatsu[this.last.from]=false;}this.win(wins,this.last.from);return;}
+  resolveResponses(){const wins=this.responses.filter(r=>r.reply.win).map(r=>r.id);if(wins.length){if(this.last.riichi){
+    const id=this.last.from;this.points[id]+=this.riichiDeposit[id];this.sticks-=this.riichiDeposit[id]/1000;this.riichiDeposit[id]=0;
+    // A declaration won on immediately never establishes riichi or spends its once-per-game right.
+    if(this.shuba[id])this.shubaUsed[id]=false;
+    this.shuba[id]=false;this.openRiichi[id]=false;this.ippatsu[id]=false;this.hands[id]._lizhi=false;
+   }this.win(wins,this.last.from);return;}
    if(this.phase==='nuki'){const id=this.last.from;this.hands[id].dapai(this.last.tile);this.north[id]++;this.turn=id;this.log.unshift(this.names[id]+'：北を抜きました');this.draw(false,this.options.house.northExtended);return;}
    if(this.phase==='rob'||this.phase==='robClosed'){this.commitKan(this.last.from,this.last.kan);return;}
    const call=this.responses.find(r=>r.reply.pon||r.reply.kan);if(call){this.anyCalls=true;const m=call.reply.pon||call.reply.kan;this.hands[call.id].fulou(m);const sets=this.hands[call.id]._fulou.map(x=>S.normal(x));if(/^z[567]/.test(S.normal(m))&&sets.filter(x=>/^z[567]$/.test(x)).length===3&&this.pao[call.id]['大三元']===undefined)this.pao[call.id]['大三元']=this.last.from;if(/^z[1234]/.test(S.normal(m))&&sets.filter(x=>/^z[1234]$/.test(x)).length===4&&this.pao[call.id]['大四喜']===undefined)this.pao[call.id]['大四喜']=this.last.from;this.rivers[this.last.from][this.rivers[this.last.from].length-1]+='-';this.ippatsu=[false,false,false];this.turn=call.id;this.log.unshift(this.names[call.id]+'：'+(call.reply.pon?'ポン':'カン'));if(call.reply.kan)this.commitKan(call.id,m,true);else{this.mustDiscard=true;this.rinshan=false;this.phase='turn';}return;}
