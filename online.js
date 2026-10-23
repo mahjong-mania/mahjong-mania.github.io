@@ -4,7 +4,7 @@ const onlineState=text=>{$('connection-state').textContent=text;};
 async function api(path,body){if(globalThis.NearbyTransport)return NearbyTransport.request(path,body,onlineSession);const response=await fetch(path,{method:body?'POST':'GET',headers:{...(body?{'Content-Type':'application/json'}:{}),...(onlineSession?{Authorization:'Bearer '+onlineSession.token}:{})},body:body?JSON.stringify(body):undefined,cache:'no-store'});const data=await response.json();if(!response.ok)throw Error(data.error||'通信に失敗しました');return data;}
 function roomPath(suffix){return '/api/rooms/'+onlineSession.room+'/'+suffix;}
 async function command(data){try{await api(roomPath('command'),data);}catch(e){onlineState(e.message);if(data.type==='reply'){onlineSent.delete(data.id);if(onlineActivePrompt?.id===data.id){const retry=onlineActivePrompt;onlineActivePrompt=null;presentPrompt(retry);}}throw e;}}
-function clearOnlinePrompt(){pending=null;winContinuation=null;riichiContinuation=null;$('win-confirm').close();$('riichi-confirm').close();$('actions').replaceChildren();renderHand();}
+function clearOnlinePrompt(){globalThis.ApologyNotice?.close();pending=null;winContinuation=null;riichiContinuation=null;$('win-confirm').close();$('riichi-confirm').close();$('actions').replaceChildren();renderHand();}
 function presentPrompt(p){if(!p||onlineSent.has(p.id)||onlineActivePrompt?.id===p.id)return;onlineActivePrompt=p;
  const reply=value=>{if(onlineSent.has(p.id))return;onlineSent.add(p.id);command({type:'reply',id:p.id,reply:value||{}}).catch(()=>{});};
  $('status').textContent+=' / 操作期限 '+new Date(p.deadline).toLocaleTimeString();
