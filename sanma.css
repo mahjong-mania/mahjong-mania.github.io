@@ -21,3 +21,11 @@
 
 .sanma-reach-toast.shuba{background:linear-gradient(135deg,#482455f5,#242035f5);border:3px solid #f7ce65;box-shadow:0 0 28px #e9c47499;max-width:90vw;min-width:270px}.sanma-reach-toast.shuba strong{color:#ffe48e;font-size:clamp(25px,5vw,42px)}.sanma-reach-toast.shuba span{display:block;font-size:12px;margin-top:10px;color:#fff1c0}.sanma-score.shuba-active{background:#522751;color:#ffe698;border:2px solid #f3c961;border-radius:5px}.shuba-badge{display:block;font-size:clamp(8px,1.8vw,11px);line-height:1.4;color:#ffe18d}.stile.shuba-discard{outline:2px solid #d887f3;box-shadow:0 0 7px #f5d36d}#sanma-actions .shuba-action{background:#59315e;color:#ffe69c;border:2px solid #eec76e}
 @media(prefers-reduced-motion:no-preference){.sanma-reach-toast.shuba{animation:shuba-arrive .3s ease-out}@keyframes shuba-arrive{from{opacity:0;scale:.85}to{opacity:1;scale:1}}}
+
+/* Melds must not inherit the river rotation, which clipped the right seat. */
+.sanma-opponent-melds{position:absolute;left:3%;width:27%;padding:4px;background:#123d30eb;border:1px solid #8a9f77;border-radius:4px;z-index:2;pointer-events:none}
+.sanma-opponent-melds strong{display:block;font-size:clamp(9px,2vw,12px);color:#f1dfaa;margin-bottom:3px}
+.sanma-opponent-melds .sanma-melds{justify-content:flex-start;gap:3px;min-height:0}
+.sanma-opponent-melds .stile{--size:clamp(12px,3.2vw,20px)}
+.sanma-opponent-melds.melds-2{top:28%}.sanma-opponent-melds.melds-1{top:53%}
+@media(orientation:landscape){.sanma-opponent-melds{left:18%;width:20%}.sanma-opponent-melds.melds-2{top:42%}.sanma-opponent-melds.melds-1{top:auto;bottom:3%}.sanma-opponent-melds .stile{--size:clamp(11px,3.8dvh,18px)}.sanma-opponent-melds strong{font-size:9px}}
