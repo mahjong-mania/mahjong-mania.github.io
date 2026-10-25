@@ -125,7 +125,7 @@ if(!['hule','jieju'].includes(type)&&this._openRiichi?.some(Boolean)){const expo
   }
   super.add_paipu(msg);
  }
- last() { if(this._dealerPass&&this._lianzhuang){this._lianzhuang=false;if(this._status==='hule')this.model.changbang=0;}if(this.model.defen.some(n=>n>=55000)) {this.cold=true;return this.delay(()=>this.jieju(),0);}return super.last(); }
+ last() { if(this._dealerPass&&this._lianzhuang){this._lianzhuang=false;this.model.changbang=0;}if(this.model.defen.some(n=>n>=55000)) {this.cold=true;return this.delay(()=>this.jieju(),0);}return super.last(); }
  jieju() {this._paipu.bonusChips=this.chips.slice();this._paipu.cold=!!this.cold;return super.jieju();}
 }
 function settle(paipu) {return paipu.defen.map((points,id)=>({id,points,rank:paipu.rank[id],rankChips:PAYOUT[paipu.rank[id]-1],bonusChips:paipu.bonusChips?.[id]||0}));}
@@ -3568,7 +3568,7 @@ module.exports=function(E){
    return out;
   }
   canPassDealer(){return this.phase==='roundEnd'&&!this.finished&&this.repeat&&(this.summary?.type==='win'?this.summary.wins.some(w=>w.id===this.dealer):!!this.summary?.tenpai?.[this.dealer]);}
-  passDealer(){this.repeat=false;if(this.summary.type==='win')this.nextHonba=0;this.log.unshift(this.names[this.dealer]+'：親番を流しました');this.finished=this.shouldFinish([],[]);if(this.finished)this.finish();}
+  passDealer(){this.repeat=false;this.nextHonba=0;this.log.unshift(this.names[this.dealer]+'：親番を流しました');this.finished=this.shouldFinish([],[]);if(this.finished)this.finish();}
   act(reply){const legal=this.actions().find(a=>JSON.stringify(a.reply)===JSON.stringify(reply));if(!legal)throw Error('現在は選べない操作です');const id=this.actor,h=this.hands[id];
    if(reply.next){if(this.canPassDealer()&&(reply.dealerPass===true||this.dealer!==0&&shouldPassDealer(this.points,this.dealer,this.round-1))){this.passDealer();}if(this.finished){this.phase='finished';return;}if(!this.repeat){this.dealer=(this.dealer+1)%3;this.round++;}this.honba=this.nextHonba;this.startRound();return;}
    if(['react','rob','robClosed','nuki'].includes(this.phase)){const hadRon=this.canRon(id);if(hadRon&&!reply.win)this.furiten[id]=true;this.responses.push({id,reply});this.responseIndex++;if(this.responseIndex===this.responders.length)this.resolveResponses();return;}
