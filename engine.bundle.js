@@ -9,12 +9,13 @@ const UNLOCK_YAKU = ['平和','断幺九','一盃口','三色同順','一気通�
 function rule(extra={}) {
  const modes=extra.pocchiModes||[extra.pocchiMode||'amethyst-white'];
  const legacy={white:'topaz','amethyst-white':'amethyst-white',gold:'gold-pocchi',gane:'gane-pocchi'};
- const ids=extra.gemSelection||['lapis','amethyst-p','tourmaline',...modes.map(x=>legacy[x]||x)];
+ const ids=extra.gemSelection||(extra.nekkyou?J.NEKKYOU_SELECTION:null)||['lapis','amethyst-p','tourmaline',...modes.map(x=>legacy[x]||x)];
  const gemTiles=J.configure(ids);
- return M.rule({openRiichi:true,openRiichiCost:2000,'カンドラ後乗せ':false,'場数':1,'延長戦方式':0,'本場点':1500,'切り上げ満貫あり':true,'場風牌':[1,3],'赤牌':{m:0,p:0,s:0},jewelBonus:true,fullJewel:true,...extra,
+ return M.rule({openRiichi:true,openRiichiCost:2000,'カンドラ後乗せ':false,'場数':1,'延長戦方式':0,'本場点':1500,'切り上げ満貫あり':true,'場風牌':[1,3],'赤牌':{m:0,p:0,s:0},jewelBonus:true,fullJewel:true,...extra,unlockedYaku:extra.nekkyou?'全祝儀手役':extra.unlockedYaku,
   gemSelection:ids.slice(),gemTiles,pocchiModes:modes.slice(),whitePocchi:ids.some(x=>['topaz','amethyst-white'].includes(x)),pocchiAmethyst:ids.includes('amethyst-white'),goldPocchi:ids.includes('gold-pocchi'),ganePocchi:ids.includes('gane-pocchi')});
 }
 function actions(p,msg) {
+ if(p._rule?.nekkyou)p._rule.jewelIndicators=p.model.shan?.baopai||[];
  const out=[]; const self=p._menfeng, hand=p.shoupai;
  if(msg.dealerChoice)return [{label:'連荘する',reply:{dealerPass:false}},{label:'親番を流す',reply:{dealerPass:true}}];
  if(!hand)return out;
@@ -97,6 +98,7 @@ class Game extends M.Game {
  reply_hule(){this.captureDealerChoice();return super.reply_hule();}
  reply_pingju(){this.captureDealerChoice();return super.reply_pingju();}
  call_players(type,msg,timeout){
+  if(this._rule.nekkyou)this._rule.jewelIndicators=this.model.shan?.baopai||[];
   this._dealerChoiceOffered=false;
   const eligible=this._lianzhuang&&(type==='hule'&&this._hule.length===0||type==='pingju'&&msg[0].pingju.name==='荒牌平局'&&!!msg[0].pingju.shoupai[0]);
   if(eligible){const m=this.model,points=m.defen.slice();m.player_id.forEach((id,l)=>points[id]+=this._fenpei[l]);if(points.every(n=>n>=0&&n<55000)){this._dealerChoiceOffered=true;msg[0].dealerChoice={points,self:m.player_id[0],round:m.zhuangfeng*4+m.jushu};}}
@@ -118,7 +120,7 @@ if(!['hule','jieju'].includes(type)&&this._openRiichi?.some(Boolean)){const expo
    for(let seat=0;seat<4;seat++) {
     const id=ids[seat];
     if(this.model.defen[id]>=0 && this.model.defen[id]+h.fenpei[seat]<0 && !this.busted.has(id)) {
-     transfer(this.chips,winner,id,10);this.busted.add(id);victims.push(id);
+     transfer(this.chips,winner,id,this._rule.nekkyou?5:10);this.busted.add(id);victims.push(id);
     }
    }
    h.jewelChips=n;h.jewelTotal=n*(loser===null?3:1);h.chipWinner=winner;h.chipLoser=loser;h.chipBalances=this.chips.slice();h.chipDelta=this.chips.map((v,id)=>v-before[id]);h.tobi=victims;this.bonusLog.push({winner,loser,n,victims});
@@ -126,9 +128,9 @@ if(!['hule','jieju'].includes(type)&&this._openRiichi?.some(Boolean)){const expo
   super.add_paipu(msg);
  }
  last() { if(this._dealerPass&&this._lianzhuang){this._lianzhuang=false;this.model.changbang=0;}if(this.model.defen.some(n=>n>=55000)) {this.cold=true;return this.delay(()=>this.jieju(),0);}return super.last(); }
- jieju() {this._paipu.bonusChips=this.chips.slice();this._paipu.cold=!!this.cold;return super.jieju();}
+ jieju() {if(this.cold&&this._rule.nekkyou&&!this._coldAwarded){this._coldAwarded=true;const winner=this.model.defen.indexOf(Math.max(...this.model.defen));transfer(this.chips,winner,null,3);}this._paipu.nekkyou=!!this._rule.nekkyou;this._paipu.bonusChips=this.chips.slice();this._paipu.cold=!!this.cold;return super.jieju();}
 }
-function settle(paipu) {return paipu.defen.map((points,id)=>({id,points,rank:paipu.rank[id],rankChips:PAYOUT[paipu.rank[id]-1],bonusChips:paipu.bonusChips?.[id]||0}));}
+function settle(paipu) {return paipu.defen.map((points,id)=>({id,points,rank:paipu.rank[id],rankChips:(paipu.nekkyou?[15,5,-5,-15]:PAYOUT)[paipu.rank[id]-1],bonusChips:paipu.bonusChips?.[id]||0}));}
 function saveResult(storage,id,results) {
  const key='jewel-offline-results-v1'; let record;
  try {record=JSON.parse(storage.getItem(key)||'{"games":[],"totals":{}}');}catch{throw Error('保存データを読み取れません。既存データは変更していません。');}
@@ -1459,6 +1461,7 @@ module.exports = class Game {
                                     : shoupai.toString(),
                 baojia:     rongpai ? model.lunban : null,
                 fubaopai:   fubaopai,
+                badOpen:    hule.badOpen,
                 blackChips: hule.blackChips,
                 carnelianChoice: hule.carnelianChoice,
                 pocchiAs:   hule.pocchiAs,
@@ -2064,7 +2067,7 @@ module.exports = class Game {
 
         if (!p && Jewel.wildcard(rule,shoupai)) {
             const rv = Majiang.Util.hule(shoupai, null, {
-                rule, zhuangfeng, menfeng, hupai:{lizhi:shoupai.lizhi?1:0}, baopai:[],
+                rule, zhuangfeng, menfeng, hupai:{lizhi:shoupai.lizhi?1:0}, baopai:rule.jewelIndicators||[],
                 jicun:{changbang:0,lizhibang:0}
             });
             return !!(rv && rv.hupai);
@@ -2129,10 +2132,13 @@ const rows=[
  ['aquamarine','アクアマリン','s5',1,'fixed',2,'v5'],['garnet','ガーネット','s5',2,'garnet',0,'v4'],
  ['crystal','クリスタル','s5',2,'crystal',0,'v2'],['tourmaline','トルマリン','s5',2,'tourmaline',0,'v5'],
  ['amethyst-s','アメジスト','s5',2,'amethyst',1,'v6'],
+ ['turquoise-m','ターコイズ五萬','m5',0,'turquoise',4,'v4'],
  ['topaz','トパーズ白ポッチ','z5',0,'fixed',1,'initial'],['amethyst-white','アメジスト白ポッチ','z5',0,'amethyst',1,'v2'],
  ['gold-pocchi','ゴールド發ポッチ','z6',0,'fixed',4,'v3'],['gane-pocchi','ガネクリ北ポッチ','z4',0,'gane',0,'v6']
 ];
 const CATALOG=rows.map(([id,name,base,han,effect,chips,source])=>({id,name,base,han,effect,chips,source:SOURCES[source],pocchi:base[0]==='z'}));
+const NEKKYOU_SELECTION=['lapis','turquoise-m','amethyst-p','pearl','amethyst-s','tourmaline','topaz','amethyst-white','gold-pocchi','gane-pocchi'];
+const EVENT_YAKU=['混全帯幺九','純全帯幺九','一盃口','二盃口','三色同順','三色同刻','混一色','七対子','一気通貫','対々和','三暗刻'];
 const BY_ID=Object.fromEntries(CATALOG.map(g=>[g.id,g]));
 const DEFAULT=['lapis','amethyst-p','tourmaline','amethyst-white'];
 function configure(ids){
@@ -2143,25 +2149,30 @@ function configure(ids){
  return tiles;
 }
 function rawTiles(text){const out=[];for(const part of text.replace(/[+=_*!-]/g,'').match(/[mpsz][0-9A-C]+/g)||[])for(const n of part.slice(1))out.push(part[0]+n);return out;}
-function owned(rule,hand){return rawTiles(typeof hand==='string'?hand:hand.toString()).map(t=>rule.gemTiles?.[t]).filter(Boolean);}
+function effectiveRule(rule,indicators=rule.jewelIndicators||[],ura=[]){
+ if(!rule.nekkyou)return rule;const inherited={};for(const t of [...indicators,...(ura||[])]){const g=rule.gemTiles?.[t];if(g){const list=inherited[g.base]||=[];if(!list.some(x=>x.id===g.id))list.push(g);}}
+ return {...rule,jewelInherited:inherited};
+}
+function gemsFor(rule,t){const physical=rule.gemTiles?.[t];if(physical)return [physical];return rule.nekkyou?(rule.jewelInherited||effectiveRule(rule).jewelInherited)?.[t]||[]:[];}
+function owned(rule,hand){return rawTiles(typeof hand==='string'?hand:hand.toString()).flatMap(t=>gemsFor(rule,t));}
 function has(rule,hand,effect){return owned(rule,hand).some(g=>g.effect===effect);}
-function wildcard(rule,hand){const g=rule.gemTiles?.[hand._zimo];return !!g?.pocchi && (g.id==='gold-pocchi'||hand.lizhi);}
+function wildcard(rule,hand){return gemsFor(rule,hand._zimo).some(g=>g.pocchi&&(g.id==='gold-pocchi'||hand.lizhi));}
 function number(p){return p&&p[0]!=='z'?(p[1]==='0'||p[1]==='A'?5:+p[1]):0;}
 function garnet(indicators=[],ura=[]){return Math.max(0,...indicators.map((p,i)=>number(p[0]==='z'?ura[i]:p)));}
 function full(rule,items){const numbers=Object.values(rule.gemTiles||{}).filter(g=>!g.pocchi);return numbers.length>0&&numbers.every(g=>items.some(x=>x.id===g.id))&&new Set(items.filter(g=>g.pocchi).map(g=>g.id)).size>=2;}
 function modifyHan(items,han,choice){const car=items.some(g=>g.effect==='carnelian');const mode=car&&(choice==='han'||han<=1)?'han':'chips';if(car)han+=mode==='han'?5:-1;const pearls=items.filter(g=>g.effect==='pearl').length;return {han:han*2**pearls,carnelianChoice:car?mode:null};}
 function bonusBreakdown(h,points,unlockedYaku,rule){
- const items=owned(rule,h.shoupai),lines=[];
+ rule=effectiveRule(rule,h.indicators||rule.jewelIndicators,h.fubaopai||[]);const items=owned(rule,h.shoupai),lines=[];
  const add=(label,amount,reason='')=>lines.push({label,amount,reason});
  for(const y of h.hupai||[])if(['一発','裏ドラ'].includes(y.name))add(y.name,+y.fanshu||0);
- if(h.damanguan)add('役満祝儀',(h.baojia==null?10:20)*h.damanguan,h.damanguan+'倍役満');
+ if(h.damanguan)add('役満祝儀',(h.baojia==null?(rule.nekkyou?20:10):(rule.nekkyou?40:20))*h.damanguan,h.damanguan+'倍役満');
  else if(h.fanshu>=13)add('数え役満祝儀',h.baojia==null?5:10);
- if((h.hupai||[]).some(y=>y.name===unlockedYaku))add('祝儀手役',5,unlockedYaku);
+ if(rule.nekkyou){for(const y of h.hupai||[])if(EVENT_YAKU.includes(y.name))add('祝儀手役',5,y.name);if((h.hupai||[]).some(y=>y.name==='清一色'))add('祝儀手役',5,/[,]/.test(h.shoupai)?'副露清一色':'門前清一色');if(h.badOpen)add('愚形オープン',5);}else if((h.hupai||[]).some(y=>y.name===unlockedYaku))add('祝儀手役',5,unlockedYaku);
  const winning=h.pocchiAs||h.winningTile,garnetValue=garnet(h.indicators,h.garnetUra),crystalValue=number(winning);
  for(const g of items){let amount=0,reason='';
   if(['fixed','amethyst','pearl','turquoise'].includes(g.effect))amount=g.chips;
   else if(g.effect==='lapis'){amount=h.fanshu||13;reason='最終'+amount+'翻';}
-  else if(g.effect==='tourmaline'){amount=Math.max(0,...String(Math.floor(Math.max(0,points)/100)).slice(-3).split('').map(Number));reason='和了前'+points+'点の万・千・百の位の最大値';}
+  else if(g.effect==='tourmaline'){amount=rule.nekkyou&&points===0?10:Math.max(0,...String(Math.floor(Math.max(0,points)/100)).slice(-3).split('').map(Number));reason='和了前'+points+'点の万・千・百の位の最大値';}
   else if(g.effect==='garnet'){amount=garnetValue;reason='表示牌の最大数字（字牌は裏表示を参照）';}
   else if(g.effect==='crystal'){amount=crystalValue;reason='和了牌の数字（字牌は0）';}
   else if(g.effect==='gane'){amount=Math.max(garnetValue,crystalValue);reason='ガーネット'+garnetValue+'／クリスタル'+crystalValue+'の大きい方';}
@@ -2170,7 +2181,7 @@ function bonusBreakdown(h,points,unlockedYaku,rule){
   add(g.name,amount,reason);
  }
  if(items.some(g=>g.id==='gold')&&items.some(g=>g.id==='gold-pocchi')&&(!h.pocchiAs||h.pocchiAs==='z6'))add('ゴールド＋ゴールド發ポッチ',10);
- const subtotal=lines.reduce((n,l)=>n+l.amount,0),amethysts=items.filter(g=>g.effect==='amethyst'),multiplier=2**amethysts.length;
+ const subtotal=lines.reduce((n,l)=>n+l.amount,0),amethysts=items.filter(g=>g.effect==='amethyst'),multiplier=rule.nekkyou?1+amethysts.length:2**amethysts.length;
  return {lines,subtotal,multiplier,multipliers:amethysts.map(g=>g.name),perPayer:subtotal*multiplier};
 }
 function bonus(h,points,unlockedYaku,rule){return bonusBreakdown(h,points,unlockedYaku,rule).perPayer;}
@@ -2179,7 +2190,7 @@ function blackChips(tiles,mianzi){
  let result=n;for(const m of mianzi){if(!outside(m.slice(0,2)))continue;if(/^[mpsz]([1-9])\1\1\1$/.test(m))result+=6;else if(/^[mpsz]([1-9])\1\1(?:_!)?$/.test(m))result+=2;}
  return result;
 }
-module.exports={SOURCES,CATALOG,BY_ID,DEFAULT,configure,rawTiles,owned,has,wildcard,number,garnet,full,modifyHan,bonus,bonusBreakdown,blackChips};
+module.exports={SOURCES,CATALOG,BY_ID,DEFAULT,NEKKYOU_SELECTION,EVENT_YAKU,effectiveRule,gemsFor,configure,rawTiles,owned,has,wildcard,number,garnet,full,modifyHan,bonus,bonusBreakdown,blackChips};
 
 },
 "vendor/majiang-core/lib/xiangting.js":function(module,exports,require){
@@ -3076,9 +3087,10 @@ function get_defen(fu, hupai, rongpai, param) {
 }
 
 function hule(shoupai, rongpai, param) {
+    param={...param,rule:Jewel.effectiveRule(param.rule,param.baopai?.length?param.baopai:param.rule.jewelIndicators,param.fubaopai)};
     // A drawn pocchi is a wildcard only after riichi. Evaluate every legal
     // replacement and score the best, preserving the physical Jewel bonus.
-    if (!rongpai && Jewel.wildcard(param.rule,shoupai)) {
+    if (!param.pocchi && !rongpai && Jewel.wildcard(param.rule,shoupai)) {
         const drawn=shoupai._zimo;
         const base = shoupai.clone().dapai(drawn);
         let best, bestChips = -Infinity;
@@ -3091,7 +3103,7 @@ function hule(shoupai, rongpai, param) {
             // actual chip receipt, preserving the original physical Jewels.
             const scored = {...rv, shoupai: shoupai.toString(), pocchiAs: suit+n,
                 winningTile: suit+n, baojia: null, indicators: param.baopai,
-                garnetUra: param.fubaopai || []};
+                garnetUra: param.fubaopai || [], fubaopai:param.fubaopai||[]};
             const chips = Jewel.bonus(scored, 0, param.rule.unlockedYaku, param.rule);
             if (!best || rv.defen > best.defen
                 || rv.defen === best.defen && chips > bestChips) {
@@ -3115,13 +3127,13 @@ function hule(shoupai, rongpai, param) {
                                     param.baopai, param.fubaopai);
     const physical=rongpai?shoupai.clone().zimo(rongpai):shoupai;
     const items=Jewel.owned(param.rule,physical);
-    if(param.pocchi&&param.rule.gemTiles?.[param.pocchi])items.push(param.rule.gemTiles[param.pocchi]);
+    if(param.pocchi)items.push(...Jewel.gemsFor(param.rule,param.pocchi));
     // All selected Jewels carry their own specified han, replacing red-dora
     // treatment of the physical 0/A markers.
     if(param.rule.gemTiles)post_hupai=post_hupai.filter(y=>y.name!=='赤ドラ');
     const gemHan=items.reduce((n,g)=>n+g.han,0);
     if(gemHan)post_hupai.push({name:'宝石牌',fanshu:gemHan});
-    if(items.length>=3&&param.rule.jewelBonus)pre_hupai.push({name:'Jewel',fanshu:1});
+    if((param.rule.nekkyou?new Set(items.map(g=>g.id)).size:items.length)>=3&&param.rule.jewelBonus)pre_hupai.push({name:'Jewel',fanshu:1});
     if(param.rule.fullJewel&&Jewel.full(param.rule,items))pre_hupai=[{name:'フルジュエル',fanshu:'*'},...pre_hupai.filter(y=>typeof y.fanshu==='string')];
     param={...param,_jewelItems:items};
     const scoringRule={...param.rule,_turquoise:items.some(g=>g.effect==='turquoise')};
@@ -3141,6 +3153,7 @@ function hule(shoupai, rongpai, param) {
         if(param.openRon && rongpai)hupai=[{name:'オープンリーチ放銃',fanshu:'*'},...hupai.filter(y=>typeof y.fanshu==='string')];
         let rv    = get_defen(hudi.fu, hupai, rongpai, param);
         rv.blackChips=Jewel.blackChips(Jewel.rawTiles(physical.toString()).map(p=>Majiang.Shoupai.normal_pai(p)),mianzi);
+        rv.badOpen=param.rule.nekkyou&&param.hupai.lizhi>=3&&mianzi.some(m=>/!/.test(m)&&(/^[mpsz](\d)\1(?:\1)?[+=_\-]!$/.test(m)||/^[mps]\d\d[+=_\-]!\d$/.test(m)||/^[mps](?:123[+=_\-]!|7[+=_\-]!89)$/.test(m)));
         rv.carnelianChoice=rv.carnelianChoice||null;
 
         if (! max || rv.defen > max.defen
@@ -3779,16 +3792,16 @@ const crypto=require("online/crypto.js"),E=require("offline/engine.js");
 const copy=x=>JSON.parse(JSON.stringify(x));
 class Rooms {
  constructor({maxRooms=8,turnMs=20000,callMs=10000,confirmMs=15000,speed=0,idleMs=2*3600000}={}){Object.assign(this,{maxRooms,turnMs,callMs,confirmMs,speed,idleMs});this.rooms=new Map();}
- create(name){this.expire();if(this.rooms.size>=this.maxRooms)throw Error('現在満室です。しばらく待ってください');let code;do{code=crypto.randomBytes(4).toString('hex').toUpperCase();}while(this.rooms.has(code));const r={code,host:0,members:[],selection:E.J.DEFAULT.slice(),game:null,phase:'lobby',touched:Date.now(),id:crypto.randomUUID()};this.rooms.set(code,r);return this.join(code,name);}
+ create(name){this.expire();if(this.rooms.size>=this.maxRooms)throw Error('現在満室です。しばらく待ってください');let code;do{code=crypto.randomBytes(4).toString('hex').toUpperCase();}while(this.rooms.has(code));const r={code,host:0,members:[],selection:E.J.DEFAULT.slice(),nekkyou:false,game:null,phase:'lobby',touched:Date.now(),id:crypto.randomUUID()};this.rooms.set(code,r);return this.join(code,name);}
  room(code){const r=this.rooms.get(String(code).toUpperCase());if(!r)throw Error('ルームが見つかりません。サーバー再起動の場合は作り直してください');return r;}
  join(code,name){const r=this.room(code);if(r.phase!=='lobby')throw Error('対局開始後は新規参加できません');if(r.members.length>=4)throw Error('満席です');name=String(name||'').trim();if(!name||name.length>16)throw Error('名前は1〜16文字にしてください');const m={id:r.members.length,name,token:crypto.randomBytes(32).toString('hex'),events:[],waiters:new Set(),pending:null,ready:false,lastSeen:Date.now(),joined:Date.now(),seen:new Map()};r.members.push(m);r.touched=Date.now();this.lobby(r);return {room:r.code,token:m.token,self:m.id};}
  auth(code,token){const r=this.room(code),m=r.members.find(m=>m.token===token);if(!m)throw Error('参加情報が無効です');m.lastSeen=Date.now();r.touched=Date.now();return {r,m};}
  emit(m,type,data){if(m.events.length>=20000)throw Error('対局ログ上限です');m.events.push({seq:m.events.length+1,type,data:copy(data)});for(const wake of m.waiters)wake();m.waiters.clear();}
- lobby(r){const data={room:r.code,host:r.host,phase:r.phase,selection:r.selection,members:r.members.map(m=>({id:m.id,name:m.name,ready:m.ready,connected:Date.now()-m.lastSeen<45000})),cpu:4-r.members.length};for(const m of r.members)this.emit(m,'lobby',data);}
+ lobby(r){const data={room:r.code,host:r.host,phase:r.phase,selection:r.selection,nekkyou:r.nekkyou,members:r.members.map(m=>({id:m.id,name:m.name,ready:m.ready,connected:Date.now()-m.lastSeen<45000})),cpu:4-r.members.length};for(const m of r.members)this.emit(m,'lobby',data);}
  request(r,m,type,data,callback,ms,fallback){const id=crypto.randomUUID(),deadline=Date.now()+ms;const finish=reply=>{if(m.pending?.id!==id)return;clearTimeout(m.pending.timer);m.pending=null;this.emit(m,'resolved',{id});callback(reply);};m.pending={id,type,data,deadline,finish,timer:setTimeout(()=>finish(fallback()),ms)};m.pending.timer.unref?.();this.emit(m,'prompt',{id,type,data,deadline});}
  command(r,m,command){
   const {type}=command;
-  if(type==='configure'){if(m.id!==r.host||r.phase!=='lobby')throw Error('設定変更は開始前のホストのみです');E.J.configure(command.selection);r.selection=command.selection.slice();for(const p of r.members)p.ready=false;this.lobby(r);return;}
+  if(type==='configure'){if(m.id!==r.host||r.phase!=='lobby')throw Error('設定変更は開始前のホストのみです');E.J.configure(command.selection);if(command.nekkyou!==undefined&&typeof command.nekkyou!=='boolean')throw Error('ルール設定が不正です');r.selection=command.selection.slice();r.nekkyou=command.nekkyou===true;for(const p of r.members)p.ready=false;this.lobby(r);return;}
   if(type==='ready'){if(r.phase!=='lobby')throw Error('すでに開始しています');m.ready=command.ready===true;this.lobby(r);return;}
   if(type==='next'){
    if(command.matchId!==r.matchId||!r.matchId||!['finished','lobby'].includes(r.phase))throw Error('次の対局の準備は終局後に行ってください');
@@ -3812,7 +3825,7 @@ class Rooms {
    }else player=new E.Player((options,reply,msg,p)=>reply(E.cpu(p,options)));
    players.push(player);
   }
-  r.game=new E.Game(players,paipu=>{r.phase='finished';r.results=E.settle(paipu);for(const m of r.members)this.emit(m,'result',{matchId:r.matchId,rows:r.results,cold:!!paipu.cold});this.lobby(r);},{gemSelection:r.selection});r.game._model.player=[0,1,2,3].map(id=>r.members[id]?.name||'CPU '+(id+1));r.game.speed=this.speed;r.game.kaiju();
+  r.game=new E.Game(players,paipu=>{r.phase='finished';r.results=E.settle(paipu);for(const m of r.members)this.emit(m,'result',{matchId:r.matchId,rows:r.results,cold:!!paipu.cold});this.lobby(r);},{gemSelection:r.selection,nekkyou:r.nekkyou});r.game._model.player=[0,1,2,3].map(id=>r.members[id]?.name||'CPU '+(id+1));r.game.speed=this.speed;r.game.kaiju();
  }
  events(r,m,after){if(!Number.isSafeInteger(after)||after<0||after>m.events.length)throw Error('受信位置が不正です');return {head:m.events.length,events:m.events.slice(after,after+200),pending:m.pending?{id:m.pending.id,type:m.pending.type,data:m.pending.data,deadline:m.pending.deadline}:null};}
  expire(){for(const [code,r]of this.rooms)if(Date.now()-r.touched>this.idleMs){r.game?.stop();for(const m of r.members){clearTimeout(m.pending?.timer);for(const wake of m.waiters)wake();}this.rooms.delete(code);}}
