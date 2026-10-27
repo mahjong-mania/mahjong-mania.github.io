@@ -38,7 +38,7 @@ function update(msg,p){
  if(msg.pingju)log('流局：'+msg.pingju.name);
 }
 function showWin(h,done,p,accepted=false){
- if(!accepted)MahjongFeel.sound('win');
+ if(!accepted)MahjongFeel.sound((h.chipDelta||[]).some(n=>n<=-10)?'boom':'win');
  if(!accepted&&(h.chipDelta||[]).some(n=>n<=-10))return ApologyNotice.show(()=>showWin(h,done,p,true));
  if(h.openTrap)alert('手詰まり！\nオープンリーチの当たり牌しか切れないため、役満のロンとして精算します。');
  winContinuation=done;
