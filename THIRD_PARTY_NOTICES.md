@@ -7,7 +7,7 @@ Vendored source has local extensions for Jewel scoring, pocchi tile identities a
 
 ## リーチ音声
 
-「リーチ！」「ポン！」「チー！」は pyopenjtalk-plus / Open JTalk を用い、HTS Voice “Mei” から合成した音声です。速度・音量を調整し、MP3形式へ変換しています。
+「リーチ！」「ポン！」「チー！」「ロン！」「ツモ！」「カン！」は pyopenjtalk-plus / Open JTalk を用い、HTS Voice “Mei” から合成した音声です。速度・音量を調整し、MP3形式へ変換しています。
 
 HTS Voice “Mei”, MMDAgent Project Team, Copyright (c) 2009–2013 Nagoya Institute of Technology, Department of Computer Science.
 Source: https://github.com/MMDAgent/MMDAgent/tree/master/Voice/mei
