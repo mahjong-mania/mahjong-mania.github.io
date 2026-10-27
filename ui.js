@@ -33,6 +33,7 @@ function update(msg,p){
  if(snapshot){liveChips=snapshot.slice();renderLiveChips();}
  render(p);
  if(msg.hule){const h=msg.hule;log(`${names[p.model.player_id[h.l]]} ${h.baojia===null?'ツモ':'ロン'} ${h.defen}点 / ${(h.hupai||[]).map(y=>y.name).join('・')} / ${receipt(h)}${h.tobi?.length?' / トビ賞+'+(h.tobi.length*10)+'枚':''}${h.pocchiAs?' / ポッチ→'+label(h.pocchiAs):''}`);}
+ if(msg.dapai?.p.endsWith('*'))MahjongFeel.reach();
  if(msg.dapai?.p.endsWith('*'))log(names[p.model.player_id[msg.dapai.l]]+' リーチ！');
  if(msg.pingju)log('流局：'+msg.pingju.name);
 }
@@ -49,7 +50,7 @@ function showWin(h,done,p,accepted=false){
  $('win-yaku').textContent=(h.hupai||[]).map(y=>y.name+(typeof y.fanshu==='number'?' '+y.fanshu+'翻':'')).join(' / ');
  const gems=J.owned(p._rule,h.shoupai);$('win-jewels').textContent='使用した宝石：'+(gems.map(g=>g.name).join('・')||'なし');
  $('win-receipt').textContent=receipt(h)+(h.tobi?.length?' / トビ賞+'+(h.tobi.length*10)+'枚':'')+(h.pocchiAs?' / ポッチは'+label(h.pocchiAs)+'として和了':'');
- $('win-breakdown').replaceChildren();const detail=h.chipBreakdown;
+ $('win-breakdown').replaceChildren();for(const [title,tiles]of [['ドラ表示牌',h.indicators||[]],['裏ドラ表示牌',h.fubaopai||[]]]){if(!tiles.length)continue;const row=document.createElement('div');row.className='win-tiles';const text=document.createElement('strong');text.textContent=title;row.append(text,...tiles.map(tile));$('win-breakdown').append(row);}const detail=h.chipBreakdown;
  if(detail){for(const line of detail.lines){const row=document.createElement('div');row.className='chip-detail-row';const text=document.createElement('span');text.textContent=line.label+(line.reason?'（'+line.reason+'）':'');const amount=document.createElement('b');amount.textContent=signed(line.amount)+'枚';row.append(text,amount);$('win-breakdown').append(row);}
  const formula=document.createElement('p');formula.textContent='基本祝儀 '+signed(detail.subtotal)+'枚'+(detail.multiplier>1?' × '+detail.multiplier+'（'+detail.multipliers.join('・')+'）':'')+' ＝ 1人あたり '+signed(detail.perPayer)+'枚';$('win-breakdown').append(formula);
  }else $('win-breakdown').textContent='この和了の内訳データはありません';
