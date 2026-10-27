@@ -29,6 +29,7 @@ function renderLiveChips(){
 function receipt(h){const n=h.jewelChips||0,total=h.jewelTotal??n*(h.baojia===null?3:1);if(!n)return '祝儀0枚';return '祝儀 '+signed(total)+'枚（'+(h.baojia===null?'各家':'放銃者')+(n>0?'から':'へ')+Math.abs(n)+'枚）';}
 function update(msg,p){
  if(msg.dapai||msg.fulou||msg.gang)MahjongFeel.sound("tile");
+ if(msg.fulou){const tiles=J.rawTiles(msg.fulou.m);if(tiles.length===3)MahjongFeel.call(new Set(tiles.map(t=>E.M.Shoupai.normal_pai(t))).size===1?'pon':'chi');}
  const snapshot=msg.hule?.chipBalances||msg.qipai?.chipBalances;
  if(snapshot){liveChips=snapshot.slice();renderLiveChips();}
  render(p);
