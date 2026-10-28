@@ -36,6 +36,6 @@ $('apply-start').onclick=()=>{if(!validateSelection())return;command({type:'conf
 $('new').onclick=()=>{$('table-menu').close();$('game-area').hidden=true;$('online-lobby').hidden=false;};
 $('resume-table').onclick=()=>{$('online-lobby').hidden=true;$('game-area').hidden=false;};
 $('forget-room').onclick=()=>{if(!confirm('参加情報を消しますか？対局中の席はCPUが代行し、この端末から復帰できなくなります。'))return;sessionStorage.removeItem('houseki-room');location.reload();};
-$('export').onclick=()=>{const url=URL.createObjectURL(new Blob([localStorage.getItem('houseki-online-results-v1')||'[]'],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='houseki-online-results.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
+$('export').onclick=()=>{const raw=localStorage.getItem('houseki-online-results-v1')||'[]';if(globalThis.Android?.exportReplay){Android.exportReplay('houseki-online-results.json',raw);return;}const url=URL.createObjectURL(new Blob([raw],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='houseki-online-results.json';a.click();/* Keep the download data alive until this document closes. */};
 $('settings').disabled=true;
 try{onlineSession=globalThis.NearbyTransport?null:JSON.parse(sessionStorage.getItem('houseki-room')||'null');if(onlineSession)poll();}catch{onlineState('参加情報を読み込めませんでした');}

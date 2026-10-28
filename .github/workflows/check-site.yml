@@ -28,6 +28,7 @@ jobs:
         env:
           SMOKE_ROOT: .
           SMOKE_BASE: /
+      - run: node scripts/smoke-save-payload.js
       - uses: actions/upload-artifact@v4
         if: always()
         with:
