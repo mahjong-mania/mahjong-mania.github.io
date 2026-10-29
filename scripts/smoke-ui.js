@@ -80,7 +80,7 @@ const {chromium}=require('playwright'),http=require('http'),fs=require('fs'),pat
   await page.screenshot({path:'mahjong-jewel-complete.png',fullPage:true});
   await page.locator('.complete-buttons button').first().click();await page.waitForSelector('#hand button:enabled');assert.equal(await page.locator('#match-complete').evaluate(d=>d.open),false);
   await page.evaluate(()=>{game.stop();game._callback({defen:[40000,25000,20000,15000],rank:[1,2,3,4],bonusChips:[0,0,0,0]});});
-  await page.locator('.complete-buttons button').nth(1).click();await page.waitForURL('**/home.html');assert.equal(await page.locator('.web-home-card').count(),5);assert.deepEqual(errors,[]);
+  await page.locator('.complete-buttons button').nth(1).click();await page.waitForURL('**/home.html');assert.equal(await page.locator('.web-home-card').count(),4);assert.equal(await page.locator('#records-entry').isVisible(),true);assert.deepEqual(errors,[]);
   console.log('Real end callback opens results, saves once, starts another match or returns to home: OK');
 
  }finally{await browser.close();server.close();}

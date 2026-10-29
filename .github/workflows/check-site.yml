@@ -35,3 +35,7 @@ jobs:
           name: mahjong-mania-preview
           path: mahjong-jewel-*.png
       - run: node scripts/smoke-portrait-discard.js
+      - run: node scripts/smoke-blue-design.js
+        env:
+          SMOKE_ROOT: .
+          BLUE_SCREENSHOTS: /tmp/houseki-blue-screenshots
