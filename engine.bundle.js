@@ -174,17 +174,16 @@ function profile(level='standard',mode='four-standard'){
  validate(level);
  if(level==='beginner')return {...BASE,beginner:true,wait:3,gem:.15,ready:0,defense:300,defenseReady:80,riichi:12,callCost:140};
  if(level==='standard')return {...BASE};
- const name=learned.selected?.[mode]||'balanced';return {...BASE,...CANDIDATES[name]};
+ const name=learned.selected?.[mode]||'balanced';return {...BASE,...CANDIDATES[name],...(learned.nextPolicy?.[mode]||{})};
 }
 module.exports={BASE,CANDIDATES,validate,profile,metadata:learned};
 
 },
 "offline/cpu-weights.js":function(module,exports,require){
 'use strict';
-// Learned against a frozen former CPU using seeded, complete matches.
 module.exports={
-  "version": 2,
-  "status": "self_play_parameter_optimization",
+  "version": 3,
+  "status": "bounded_search_validated",
   "trainedUntil": "2026-10-29T20:00:00.000Z",
   "evaluationFinishedAt": "2026-10-29T20:35:01.471Z",
   "completedGames": 116592,
@@ -294,6 +293,206 @@ module.exports={
       },
       "confidence": "no_statistically_confirmed_improvement",
       "fallback": null
+    }
+  },
+  "nextPolicy": {
+    "four-standard": {
+      "lookaheadWeight": 35,
+      "tacticalDefense": true,
+      "placementEV": true
+    }
+  },
+  "nextStudy": {
+    "completedGames": 26136,
+    "pairs": 13068,
+    "failures": 0,
+    "baseline": "v1.1.0 expert",
+    "finishedAt": "2026-10-29T23:22:01.387Z",
+    "validation": {
+      "four-standard": {
+        "variant": "careful",
+        "phase": "fresh_confirmation",
+        "adopted": true,
+        "metrics": {
+          "pairs": 4096,
+          "meanDifference": 1.49462890625,
+          "ci95": [
+            0.542436365148318,
+            2.446821447351682
+          ],
+          "rankChipDifference": 1.4892578125,
+          "bonusChipDifference": 0.00537109375,
+          "latency": {
+            "calls": 289022,
+            "meanMs": 1.0912530916746737,
+            "maxMs": 77.94938599993475,
+            "buckets": [
+              183088,
+              70106,
+              32464,
+              3004,
+              271,
+              87,
+              2,
+              0,
+              0,
+              0
+            ],
+            "bounds": [
+              1,
+              2,
+              5,
+              10,
+              20,
+              50,
+              100,
+              200,
+              500,
+              "Infinity"
+            ]
+          }
+        },
+        "p95UpperMs": 5,
+        "fallback": null
+      },
+      "four-hard": {
+        "variant": "careful",
+        "phase": "first_evaluation_rejected",
+        "adopted": false,
+        "metrics": {
+          "pairs": 1026,
+          "meanDifference": 0.28460038986354774,
+          "ci95": [
+            -1.4751725544092151,
+            2.044373334136311
+          ],
+          "rankChipDifference": 0.6237816764132553,
+          "bonusChipDifference": -0.3391812865497076,
+          "latency": {
+            "calls": 59014,
+            "meanMs": 1.3429336686550868,
+            "maxMs": 51.85670000000391,
+            "buckets": [
+              32950,
+              15421,
+              9112,
+              1327,
+              184,
+              19,
+              1,
+              0,
+              0,
+              0
+            ],
+            "bounds": [
+              1,
+              2,
+              5,
+              10,
+              20,
+              50,
+              100,
+              200,
+              500,
+              "Infinity"
+            ]
+          }
+        },
+        "p95UpperMs": 5,
+        "fallback": "previous expert unchanged"
+      },
+      "sanma-general": {
+        "variant": "careful",
+        "phase": "first_evaluation_rejected",
+        "adopted": false,
+        "metrics": {
+          "pairs": 1026,
+          "meanDifference": -1.0243664717348928,
+          "ci95": [
+            -2.013064868611685,
+            -0.03566807485810053
+          ],
+          "rankChipDifference": -0.05847953216374269,
+          "bonusChipDifference": -0.9658869395711501,
+          "latency": {
+            "calls": 120210,
+            "meanMs": 0.6903372423674615,
+            "maxMs": 32.4742870000191,
+            "buckets": [
+              93793,
+              14877,
+              9885,
+              1551,
+              96,
+              8,
+              0,
+              0,
+              0,
+              0
+            ],
+            "bounds": [
+              1,
+              2,
+              5,
+              10,
+              20,
+              50,
+              100,
+              200,
+              500,
+              "Infinity"
+            ]
+          }
+        },
+        "p95UpperMs": 5,
+        "fallback": "previous expert unchanged"
+      },
+      "sanma-house": {
+        "variant": "forecast",
+        "phase": "fresh_confirmation",
+        "adopted": false,
+        "metrics": {
+          "pairs": 4098,
+          "meanDifference": 0.16447047340165935,
+          "ci95": [
+            -0.3060675512270459,
+            0.6350084980303646
+          ],
+          "rankChipDifference": 0.1268911664226452,
+          "bonusChipDifference": 0.037579306979014154,
+          "latency": {
+            "calls": 513708,
+            "meanMs": 0.7042815267682611,
+            "maxMs": 56.292820999980904,
+            "buckets": [
+              407967,
+              52314,
+              44595,
+              8161,
+              575,
+              95,
+              1,
+              0,
+              0,
+              0
+            ],
+            "bounds": [
+              1,
+              2,
+              5,
+              10,
+              20,
+              50,
+              100,
+              200,
+              500,
+              "Infinity"
+            ]
+          }
+        },
+        "p95UpperMs": 5,
+        "fallback": "previous expert unchanged"
+      }
     }
   }
 };
@@ -3611,7 +3810,7 @@ module.exports=function install(M){
 },
 "offline/cpu.js":function(module,exports,require){
 'use strict';
-const analyzeDefense=require("offline/defense.js"),Profiles=require("offline/cpu-profiles.js");
+const analyzeDefense=require("offline/defense.js"),Profiles=require("offline/cpu-profiles.js"),Search=require("offline/cpu-search.js");
 // Deliberately use only our hand, discards, exposed melds and visible indicators.
 module.exports=function(M,J){
  const normal=t=>M.Shoupai.normal_pai(t).slice(0,2),legacy=require("offline/cpu-legacy.js")(M,J);
@@ -3632,7 +3831,8 @@ module.exports=function(M,J){
   const r=M.Util.hule(hand,ron,params(c,hand,choice));if(!r?.defen)return 0;
   const result={...r,shoupai:ron?hand.clone().zimo(ron.slice(0,2)).toString():hand.toString(),winningTile:ron?.slice(0,2)||hand._zimo,indicators:c.model.shan?.baopai||[],baojia:ron?0:null};
   const id=c.model.player_id?.[c.p._menfeng]??c.p._id??0,points=c.model.defen?.[id]??25000;
-  return r.defen+J.bonus(result,points,c.p._rule.unlockedYaku,c.p._rule)*c.cfg.chipValue*(ron?1:3);
+  const placement=c.cfg.placementEV?Search.placementGain((c.model.player_id||[0,1,2,3]).map(id=>c.model.defen?.[id]??25000),c.p._menfeng,r.fenpei,c.p._rule.nekkyou?[15,5,-5,-15]:[50,25,-25,-50],c.model.jushu):0;
+  return r.defen+(J.bonus(result,points,c.p._rule.unlockedYaku,c.p._rule)*(ron?1:3)+placement)*c.cfg.chipValue;
  }
  function gemValue(c,hand){
   const items=J.owned(c.p._rule,hand),indicators=c.model.shan?.baopai||[];
@@ -3652,7 +3852,7 @@ module.exports=function(M,J){
  function evaluate(c,hand){
   const key=hand.toString();if(c.cache.has(key))return c.cache.get(key);
   const n=M.Util.xiangting(hand),waits=n>=0?M.Util.tingpai(hand):[],ukeire=waits.reduce((v,t)=>v+c.left(t),0);
-  let value=-n*1000+ukeire*c.cfg.wait+gemValue(c,hand)*c.cfg.gem+(hand.lizhi?c.cfg.riichi:0);
+  let predictedWin=0;let value=-n*1000+ukeire*c.cfg.wait+gemValue(c,hand)*c.cfg.gem+(hand.lizhi?c.cfg.riichi:0);
   if(n===0){
    // Score real completed hands, including the selected bonus yaku and gem effects.
    let total=0,weight=0;const gems=Object.keys(c.p._rule.gemTiles||{}),draws=new Map();
@@ -3660,10 +3860,11 @@ module.exports=function(M,J){
    for(const g of gems){const gem=c.p._rule.gemTiles[g];if(gem.pocchi&&(hand.lizhi||gem.id==='gold-pocchi')&&!c.physical.has(g))draws.set(g,1);}
    for(const [t,left] of draws){if(!left)continue;const complete=hand.clone().zimo(t),v=Math.max(winValue(c,complete,null,'chips'),winValue(c,complete,null,'han'));total+=left*v;weight+=left;if(v&&!waits.includes(normal(t)))value+=left*6;}
 
+   if(weight&&total)predictedWin=total/weight;
    if(weight&&total)value+=Math.min(c.cfg.readyCap,Math.log2(1+total/weight)*c.cfg.ready);
    if(!ukeire)value-=180;
   }
-  const result={value,n,ukeire};c.cache.set(key,result);return result;
+  const result={value,n,ukeire,winValue:predictedWin};c.cache.set(key,result);return result;
  }
  function openDanger(c,t){
   if(c.p.shoupai.lizhi)return 0;
@@ -3681,8 +3882,9 @@ module.exports=function(M,J){
  function chooseDiscard(c,options){let best=null,value=-Infinity;const ranked=[];
   for(const a of options){const h=c.p.shoupai.clone().dapai(a.reply.dapai),e=evaluate(c,h),risk=danger(c,a.reply.dapai);
    let factor=e.n>0?c.cfg.defense:c.cfg.defenseReady;const id=c.model.player_id?.[c.p._menfeng]??0,points=c.model.defen||[];if(c.cfg.placement&&c.model.jushu>=3&&points.length){const lead=points[id]-Math.max(...points.filter((_,i)=>i!==id));factor*=lead>0?1+c.cfg.placement:1-c.cfg.placement/2;}
-   const open=openDanger(c,a.reply.dapai);const v=e.value-risk*factor-open*1000000;ranked.push({a,v,n:e.n,open});if(v>value){value=v;best=a;}
-  }if(c.cfg.beginner&&((c.p._beginnerTurns=(c.p._beginnerTurns||0)+1)%3===0)){ranked.sort((a,b)=>b.v-a.v);const second=ranked.slice(1).find(r=>!r.open&&r.n<=ranked[0].n&&r.a.reply.dapai.slice(0,2)!==ranked[0].a.reply.dapai.slice(0,2));if(second)return second.a;}return best;
+   if(c.cfg.tacticalDefense&&c.threats.length)factor=Search.defenseFactor(Math.max(factor,e.n>0?450:120),{enabled:true,shanten:e.n,turn:c.model.he?.[c.p._menfeng]?._pai.length||0,remaining:70-(c.model.he||[]).reduce((v,h)=>v+(h._pai?.length||0),0),dealerThreat:c.threats.includes(0),ownValue:e.winValue});
+   const open=openDanger(c,a.reply.dapai);let v=e.value-risk*factor-open*1000000;if(c.cfg.tacticalDefense&&c.threats.length&&e.n>0)v+=e.n*650;ranked.push({a,v,n:e.n,open,h});if(v>value){value=v;best=a;}
+  }if(c.cfg.lookaheadWeight){const cache=new Map(),unseen=Math.max(1,136-[...c.visible.values()].reduce((v,n)=>v+n,0));ranked.sort((a,b)=>b.v-a.v);const ceiling=ranked[0].v;for(const r of ranked.slice(0,3)){if(r.open||r.n!==1||r.v<ceiling-300)continue;const k=r.h.toString();if(!cache.has(k))cache.set(k,Search.forecast(r.h,{shanten:M.Util.xiangting,waits:M.Util.tingpai,left:c.left,normal,keep:h=>gemValue(c,h),unseen}).value);r.v+=cache.get(k)*c.cfg.lookaheadWeight;}ranked.sort((a,b)=>b.v-a.v);best=ranked[0].a;}if(c.cfg.beginner&&((c.p._beginnerTurns=(c.p._beginnerTurns||0)+1)%3===0)){ranked.sort((a,b)=>b.v-a.v);const second=ranked.slice(1).find(r=>!r.open&&r.n<=ranked[0].n&&r.a.reply.dapai.slice(0,2)!==ranked[0].a.reply.dapai.slice(0,2));if(second)return second.a;}return best;
  }
  function openYaku(c,h){
   const text=J.rawTiles(h.toString()).map(normal).join(''),honors=[5,6,7,c.p._menfeng+1,...(c.p._rule['場風牌']||[c.model.zhuangfeng+1])];
@@ -3729,6 +3931,44 @@ module.exports=function analyze({tile,visible,river=[],concealedTiles=13}){
  const h=Math.max(1,Math.min(concealedTiles,total)),single=total?h*u/total:0,pairExpectation=total>1?choose2(h)*pairs/choose2(total):0,expected=single+pairExpectation;
  return {score:expected/(1+expected),combinations:pairs+u,single:u,pairs,shapes,safe:false};
 };
+
+},
+"offline/cpu-search.js":function(module,exports,require){
+'use strict';
+// Bounded public-information search. These are heuristic values, not calibrated EVs.
+function rankValue(points,self,payout,scale=12000){
+ let p=[1];for(let id=0;id<points.length;id++)if(id!==self){const q=1/(1+Math.exp(Math.max(-30,Math.min(30,(points[self]-points[id])/scale))));const next=Array(p.length+1).fill(0);for(let n=0;n<p.length;n++){next[n]+=p[n]*(1-q);next[n+1]+=p[n]*q;}p=next;}
+ return p.reduce((v,p,n)=>v+p*payout[n],0);
+}
+function placementGain(points,self,delta,payout,round){
+ if(!points?.length||!delta?.length)return 0;
+ const scale=Math.max(4000,16000-3000*Math.min(4,round||0));
+ return rankValue(points.map((p,i)=>p+(delta[i]||0)),self,payout,scale)-rankValue(points,self,payout,scale);
+}
+function defenseFactor(base,{enabled=false,shanten=0,turn=0,remaining=70,ownValue=0,dealerThreat=false}={}){
+ if(!enabled)return base;
+ // A combinatorial danger index is deliberately not presented as a probability.
+ const urgency=Math.min(1,Math.max(0,(turn-5)/12)),distance=Math.min(2,Math.max(0,shanten));
+ const reward=Math.min(1,Math.max(0,ownValue/24000));
+ return base*(1+urgency+distance*.6+(dealerThreat?.35:0))*(1-reward*.55)*(remaining<12&&shanten===0?.7:1);
+}
+function forecast(hand,{shanten,waits,left,normal,keep=()=>0,budget=420,unseen=100}){
+ if(shanten(hand)!==1||hand.lizhi)return {value:0,nodes:0};
+ let sum=0,nodes=0;
+ for(const draw of waits(hand)){
+  const count=left(draw);if(!count||hand._bingpai[draw[0]][+draw[1]]>=4)continue;
+  const full=hand.clone().zimo(draw);let best=0;
+  for(const cut of full.get_dapai()||[]){
+   if(++nodes>budget)return {value:sum/Math.max(1,unseen),nodes:nodes-1,truncated:true};
+   const next=full.clone().dapai(cut);if(shanten(next)!==0)continue;
+   const live=waits(next).reduce((v,t)=>v+Math.max(0,left(t)-(normal(t)===normal(draw)?1:0)),0);
+   best=Math.max(best,live+Math.min(4,Math.max(0,keep(next))*.04));
+  }
+  sum+=count*best;
+ }
+ return {value:sum/Math.max(1,unseen),nodes,truncated:false};
+}
+module.exports={rankValue,placementGain,defenseFactor,forecast};
 
 },
 "offline/cpu-legacy.js":function(module,exports,require){
@@ -3837,7 +4077,7 @@ module.exports=function shouldPassDealer(points,self,round){const others=points.
 "offline/sanma/index.js":function(module,exports,require){
 'use strict';
 module.exports=function(E){
- const S=require("offline/sanma/scoring.js")(E),{M,J,Replay:R}=E,analyzeDefense=require("offline/defense.js");
+ const S=require("offline/sanma/scoring.js")(E),{M,J,Replay:R}=E,analyzeDefense=require("offline/defense.js"),Search=require("offline/cpu-search.js");
  const signedDirection=(from,to)=>from===(to+1)%3?'+':'-';
  class Game{
   constructor(extra={}){this.replayRecord=R.create();this.options=S.options(extra);this.replayOptions=R.clone(this.options);this.rule=S.rule(this.options.house);this.rng=extra.rng||Math.random;this.id=globalThis.crypto?.randomUUID?.()||Date.now()+'-'+Math.random();this.names=extra.names||['あなた','CPU 1','CPU 2'];this.points=[35000,35000,35000];this.chips=[0,0,0];if(extra.startSeat!==undefined&&!['random',0,1,2,'0','1','2'].includes(extra.startSeat))throw Error('開始席が不正です');this.initialDealer=extra.startSeat==='random'?Math.floor(this.rng()*3):(3-Number(extra.startSeat??0))%3;this.dealer=this.initialDealer;this.round=1;this.honba=0;this.sticks=0;this.log=[];this.ledger=[];this.phase='idle';this.shubaUsed=[false,false,false];this.rounds=0;this.startRound();}
@@ -3937,15 +4177,16 @@ module.exports=function(E){
   return Math.min(70,10+(expected-threshold)*8);
  }
  function legacyCpu(game){const id=game.actor,options=game.actions();if(!options.length)return null;const win=options.find(a=>a.reply.win);if(win)return win.reply;const north=options.find(a=>a.reply.nuki);if(north)return north.reply;const discards=options.filter(a=>a.reply.discard);if(discards.length){const visible=new Map(),add=t=>{t=S.normal(t);visible.set(t,(visible.get(t)||0)+1);};S.counts(game.hands[id]).forEach(add);for(let l=0;l<3;l++){for(const t of game.rivers[l])if(!t.endsWith('-'))add(t);if(l!==id)for(const m of game.hands[l]._fulou)J.rawTiles(m).forEach(add);}game.indicators.filter(t=>t[0]!=='f').forEach(add);for(let l=0;l<3;l++)for(let n=0;n<game.north[l];n++)add('z4');const left=t=>Math.max(0,4-(visible.get(S.normal(t))||0)),unseen=108-[...visible.values()].reduce((a,b)=>a+b,0);let best=discards[0],value=-Infinity;
-   for(const a of discards){const h=game.hands[id].clone().dapai(a.reply.discard),n=S.shanten(h),wait=S.waits(h);let v=-n*1000+wait.reduce((n,t)=>n+left(t),0)*6+J.rawTiles(h.toString()).reduce((n,t)=>n+(t==='p0'||t==='s0'?8:t==='pA'||t==='sA'?4:0),0)+(a.reply.riichi?35:0);if(a.reply.shuba)v+=shubaIncentive(game,id,h,wait,left,unseen);for(let l=0;l<3;l++)if(l!==id&&game.hands[l].lizhi)v-=analyzeDefense({tile:S.normal(a.reply.discard),visible,river:game.rivers[l].map(S.normal)}).score*(n>0?500:100);for(let l=0;l<3;l++)if(!game.hands[id].lizhi&&l!==id&&game.openRiichi[l]&&!game.furiten[l]&&!game.rivers[l].some(p=>S.waits(game.hands[l]).includes(S.normal(p)))&&game.score(l,game.hands[l],a.reply.discard.slice(0,2)+signedDirection(id,l),{preview:true}))v-=1000000;if(v>value){value=v;best=a;}}
+   for(const a of discards){const h=game.hands[id].clone().dapai(a.reply.discard),n=S.shanten(h),wait=S.waits(h);let ownValue=0;let v=-n*1000+wait.reduce((n,t)=>n+left(t),0)*6+J.rawTiles(h.toString()).reduce((n,t)=>n+(t==='p0'||t==='s0'?8:t==='pA'||t==='sA'?4:0),0)+(a.reply.riichi?35:0);if(a.reply.shuba)v+=shubaIncentive(game,id,h,wait,left,unseen);for(let l=0;l<3;l++)if(l!==id&&game.hands[l].lizhi)v-=analyzeDefense({tile:S.normal(a.reply.discard),visible,river:game.rivers[l].map(S.normal)}).score*(n>0?500:100);for(let l=0;l<3;l++)if(!game.hands[id].lizhi&&l!==id&&game.openRiichi[l]&&!game.furiten[l]&&!game.rivers[l].some(p=>S.waits(game.hands[l]).includes(S.normal(p)))&&game.score(l,game.hands[l],a.reply.discard.slice(0,2)+signedDirection(id,l),{preview:true}))v-=1000000;if(v>value){value=v;best=a;}}
    return best.reply;
   }
   // Keep the first version conservative: honor pon only when shanten improves after discard.
   const base=S.shanten(game.hands[id]);for(const a of options.filter(a=>a.reply.pon)){const h=game.hands[id].clone().fulou(a.reply.pon),s=S.normal(a.reply.pon);if(s[0]!=='z'||![1,5,6,7,(id-game.dealer+3)%3+1].includes(+s[1]))continue;for(const t of h.get_dapai()||[])if(S.shanten(h.clone().dapai(t))<base)return a.reply;}
   return options.find(a=>a.reply.pass)?.reply||options[0].reply;
  }
- function cpu(game,tuning=null,level=game.options.cpuLevel||'standard'){if(!tuning&&(level==='standard'||level==='expert'&&E.CpuProfiles.metadata.selected?.[game.options.house.rankOnly?'sanma-house':'sanma-general']==='baseline'))return legacyCpu(game);const cfg=tuning||E.CpuProfiles.profile(level,game.options.house.rankOnly?'sanma-house':'sanma-general'),evalCache=new Map();const id=game.actor,options=game.actions();if(!options.length)return null;const win=options.find(a=>a.reply.win);if(win)return win.reply;const north=options.find(a=>a.reply.nuki);if(north)return north.reply;const discards=options.filter(a=>a.reply.discard);if(discards.length){const visible=new Map(),physical=new Map(),add=t=>{const raw=t.slice(0,2);physical.set(raw,(physical.get(raw)||0)+1);t=S.normal(t);visible.set(t,(visible.get(t)||0)+1);};J.rawTiles(game.hands[id].toString()).forEach(add);for(let l=0;l<3;l++){for(const t of game.rivers[l])if(!t.endsWith('-'))add(t);if(l!==id)for(const m of game.hands[l]._fulou)J.rawTiles(m).forEach(add);}game.indicators.filter(t=>t[0]!=='f').forEach(add);for(let l=0;l<3;l++)for(let n=0;n<game.north[l];n++)add('z4');const left=t=>Math.max(0,4-(visible.get(S.normal(t))||0)),unseen=108-[...visible.values()].reduce((a,b)=>a+b,0);let best=discards[0],value=-Infinity;const ranked=[];
-   for(const a of discards){const h=game.hands[id].clone().dapai(a.reply.discard),n=S.shanten(h),wait=S.waits(h);let v=-n*1000+wait.reduce((n,t)=>n+left(t),0)*cfg.wait+J.rawTiles(h.toString()).reduce((n,t)=>n+(t==='p0'||t==='s0'?8:t==='pA'||t==='sA'?4:0),0)*cfg.gem+(a.reply.riichi?(level==='standard'&&!tuning?35:cfg.riichi):0);if(n===0&&(level==='expert'||tuning)){const ready=h.clone();if(a.reply.riichi)ready._lizhi=true;const key=ready.toString();let extra=evalCache.get(key);if(extra===undefined){let total=0,count=0;const ds=new Map();for(const t of wait){if(/[ps]5/.test(t)){const mixed=game.options.house.fiveSet==='mixed';for(const [token,num] of [[t,mixed?2:0],[t[0]+'A',mixed?1:2],[t[0]+'0',mixed?1:2]])ds.set(token,Math.max(0,num-(physical.get(token)||0)));}else ds.set(t,left(t));}if(ready.lizhi)for(const type of game.options.pocchiTypes){const t=S.POCCHI[type];ds.set(t,Math.max(0,1-(physical.get(t)||0)));}for(const [t,n] of ds){if(!n||ready._bingpai[S.normal(t)[0]][+S.normal(t)[1]]>=4)continue;const r=game.score(id,ready.clone().zimo(t),null,{preview:true,honba:0});if(!r)continue;const point=id===game.dealer?r.pay.child*2:r.pay.child+r.pay.dealer;let chips=r.lines.reduce((n,l)=>n+l.amount,0)+(r.diceEligible?3:0)+(game.options.flowerRules.winter==='dice'?r.eff[3]*3.5:0);if(r.white)chips*=({normal:1,reverse:-1,double:2,reverseDouble:-2})[Object.keys(S.POCCHI).find(k=>S.POCCHI[k]===r.pocchi)]||1;total+=n*Math.max(1,point+chips*cfg.chipValue*2);count+=n;}extra=count?Math.min(cfg.readyCap,Math.log2(1+total/count)*cfg.ready):-120;evalCache.set(key,extra);}v+=extra;}if(a.reply.shuba)v+=shubaIncentive(game,id,h,wait,left,unseen);for(let l=0;l<3;l++)if(l!==id&&game.hands[l].lizhi)v-=analyzeDefense({tile:S.normal(a.reply.discard),visible,river:game.rivers[l].map(S.normal)}).score*(n>0?cfg.defense:cfg.defenseReady);for(let l=0;l<3;l++)if(!game.hands[id].lizhi&&l!==id&&game.openRiichi[l]&&!game.furiten[l]&&!game.rivers[l].some(p=>S.waits(game.hands[l]).includes(S.normal(p)))&&game.score(l,game.hands[l],a.reply.discard.slice(0,2)+signedDirection(id,l),{preview:true}))v-=1000000;ranked.push({a,v,n});if(v>value){value=v;best=a;}}
+ function cpu(game,tuning=null,level=game.options.cpuLevel||'standard'){if(!tuning&&(level==='standard'||level==='expert'&&E.CpuProfiles.metadata.selected?.[game.options.house.rankOnly?'sanma-house':'sanma-general']==='baseline'))return legacyCpu(game);const cfg=tuning||E.CpuProfiles.profile(level,game.options.house.rankOnly?'sanma-house':'sanma-general'),evalCache=new Map(),winCache=new Map();const id=game.actor,options=game.actions();if(!options.length)return null;const win=options.find(a=>a.reply.win);if(win)return win.reply;const north=options.find(a=>a.reply.nuki);if(north)return north.reply;const discards=options.filter(a=>a.reply.discard);if(discards.length){const visible=new Map(),physical=new Map(),add=t=>{const raw=t.slice(0,2);physical.set(raw,(physical.get(raw)||0)+1);t=S.normal(t);visible.set(t,(visible.get(t)||0)+1);};J.rawTiles(game.hands[id].toString()).forEach(add);for(let l=0;l<3;l++){for(const t of game.rivers[l])if(!t.endsWith('-'))add(t);if(l!==id)for(const m of game.hands[l]._fulou)J.rawTiles(m).forEach(add);}game.indicators.filter(t=>t[0]!=='f').forEach(add);for(let l=0;l<3;l++)for(let n=0;n<game.north[l];n++)add('z4');const left=t=>Math.max(0,4-(visible.get(S.normal(t))||0)),unseen=108-[...visible.values()].reduce((a,b)=>a+b,0);let best=discards[0],value=-Infinity;const ranked=[];
+   for(const a of discards){const h=game.hands[id].clone().dapai(a.reply.discard),n=S.shanten(h),wait=S.waits(h);let ownValue=0;let v=-n*1000+wait.reduce((n,t)=>n+left(t),0)*cfg.wait+J.rawTiles(h.toString()).reduce((n,t)=>n+(t==='p0'||t==='s0'?8:t==='pA'||t==='sA'?4:0),0)*cfg.gem+(a.reply.riichi?(level==='standard'&&!tuning?35:cfg.riichi):0);if(n===0&&(level==='expert'||tuning)){const ready=h.clone();if(a.reply.riichi)ready._lizhi=true;const key=ready.toString();let extra=evalCache.get(key);if(extra===undefined){let total=0,count=0;const ds=new Map();for(const t of wait){if(/[ps]5/.test(t)){const mixed=game.options.house.fiveSet==='mixed';for(const [token,num] of [[t,mixed?2:0],[t[0]+'A',mixed?1:2],[t[0]+'0',mixed?1:2]])ds.set(token,Math.max(0,num-(physical.get(token)||0)));}else ds.set(t,left(t));}if(ready.lizhi)for(const type of game.options.pocchiTypes){const t=S.POCCHI[type];ds.set(t,Math.max(0,1-(physical.get(t)||0)));}for(const [t,n] of ds){if(!n||ready._bingpai[S.normal(t)[0]][+S.normal(t)[1]]>=4)continue;const r=game.score(id,ready.clone().zimo(t),null,{preview:true,honba:0});if(!r)continue;const point=id===game.dealer?r.pay.child*2:r.pay.child+r.pay.dealer;let chips=r.lines.reduce((n,l)=>n+l.amount,0)+(r.diceEligible?3:0)+(game.options.flowerRules.winter==='dice'?r.eff[3]*3.5:0);if(r.white)chips*=({normal:1,reverse:-1,double:2,reverseDouble:-2})[Object.keys(S.POCCHI).find(k=>S.POCCHI[k]===r.pocchi)]||1;const delta=[0,0,0];delta[id]=point;for(let other=0;other<3;other++)if(other!==id)delta[other]=-((id===game.dealer||other!==game.dealer)?r.pay.child:r.pay.dealer);const placement=cfg.placementEV?Search.placementGain(game.points,id,delta,game.options.house.fixedUma?[20,0,-20]:[20,-10,-10],game.round):0;total+=n*Math.max(1,point+(chips*2+placement)*cfg.chipValue);count+=n;}winCache.set(key,count?total/count:0);extra=count?Math.min(cfg.readyCap,Math.log2(1+total/count)*cfg.ready):-120;evalCache.set(key,extra);}ownValue=winCache.get(key)||0;v+=extra;}if(a.reply.shuba)v+=shubaIncentive(game,id,h,wait,left,unseen);for(let l=0;l<3;l++)if(l!==id&&game.hands[l].lizhi)v-=analyzeDefense({tile:S.normal(a.reply.discard),visible,river:game.rivers[l].map(S.normal)}).score*Search.defenseFactor(cfg.tacticalDefense?Math.max(n>0?cfg.defense:cfg.defenseReady,n>0?450:120):(n>0?cfg.defense:cfg.defenseReady),{enabled:cfg.tacticalDefense,shanten:n,turn:game.rivers[id].length,remaining:game.wall.length,dealerThreat:l===game.dealer,ownValue});for(let l=0;l<3;l++)if(!game.hands[id].lizhi&&l!==id&&game.openRiichi[l]&&!game.furiten[l]&&!game.rivers[l].some(p=>S.waits(game.hands[l]).includes(S.normal(p)))&&game.score(l,game.hands[l],a.reply.discard.slice(0,2)+signedDirection(id,l),{preview:true}))v-=1000000;if(cfg.tacticalDefense&&n>0&&game.hands.some((h,l)=>l!==id&&h.lizhi))v+=n*650;ranked.push({a,v,n,h});if(v>value){value=v;best=a;}}
+   if(cfg.lookaheadWeight){const cache=new Map();ranked.sort((a,b)=>b.v-a.v);const ceiling=ranked[0].v;for(const r of ranked.slice(0,3)){if(r.n!==1||r.v<ceiling-300||r.v<-100000)continue;const key=r.h.toString();if(!cache.has(key))cache.set(key,Search.forecast(r.h,{shanten:S.shanten,waits:S.waits,left,normal:S.normal,keep:h=>J.rawTiles(h.toString()).reduce((v,t)=>v+(/[ps][0A]/.test(t)?8:0),0),unseen}).value);r.v+=cache.get(key)*cfg.lookaheadWeight;}ranked.sort((a,b)=>b.v-a.v);best=ranked[0].a;}
    if(cfg.beginner){game._beginnerTurns??=[0,0,0];if(++game._beginnerTurns[id]%3===0){ranked.sort((a,b)=>b.v-a.v);const second=ranked.slice(1).find(r=>r.n<=ranked[0].n&&r.v>-100000&&r.a.reply.discard.slice(0,2)!==ranked[0].a.reply.discard.slice(0,2));if(second)return second.a.reply;}}return best.reply;
   }
   // Keep the first version conservative: honor pon only when shanten improves after discard.
