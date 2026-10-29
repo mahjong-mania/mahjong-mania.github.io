@@ -43,3 +43,6 @@ jobs:
         env:
           SMOKE_ROOT: .
           WIN_SCREENSHOT: /tmp/houseki-win-highlights.png
+      - run: node scripts/smoke-cpu-levels.js
+        env:
+          SMOKE_ROOT: .
