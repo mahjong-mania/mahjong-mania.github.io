@@ -39,3 +39,7 @@ jobs:
         env:
           SMOKE_ROOT: .
           BLUE_SCREENSHOTS: /tmp/houseki-blue-screenshots
+      - run: node scripts/smoke-win-highlights.js
+        env:
+          SMOKE_ROOT: .
+          WIN_SCREENSHOT: /tmp/houseki-win-highlights.png

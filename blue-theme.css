@@ -24,3 +24,12 @@ body.jewel-home::before{content:"";position:fixed;inset:0;pointer-events:none;op
 .home-footer p{color:#93a6c4}.record-stat,.record-history details{background:#12253b;border-color:#3b5677}.record-table td,.record-table th{border-color:#344d6e}
 @media(orientation:portrait){.seat:has(.river .tile:nth-child(19)){--tile:clamp(16px,4.2cqw,28px)}.sanma-seat:has(.sanma-river .stile:nth-child(19)){--river-tile:clamp(16px,4.2cqw,28px)}}
 .mode-nav a{background:#203451;border-color:#6e7da6;color:#e4eafb}.mode-nav small{color:#a9bed9}.complete-self{background:#253751}.complete-ledger th,.complete-ledger td{border-color:#3c5473}.complete-note,.complete-ledger caption{color:#b4c4db}.web-home h1{font-family:inherit;color:#e5edfb}#online-lobby input{background:#12243b;border-color:#526c8b}.record-history summary{color:#e1d6b5}
+
+/* Review 2: compact home and no duplicate player labels over melds. */
+.jewel-home .home-utility{display:none}.jewel-home .home-header{padding:12px 0 14px;min-height:0}.jewel-home .home-header h1{width:94%}
+#table .seat-hud{display:none}.score.reach{color:#f4d596}.score.reach span{color:#f4d596}.score.reach b{color:#ffe1a1}
+
+/* Season tiles: one readable character and one distinct jewel-style border. */
+.stile.flower{--flower-color:#d94b91;display:inline-flex;align-items:center;justify-content:center;padding:0;border:2px solid var(--flower-color);border-bottom:3px solid var(--flower-color);background:#fff9ed;color:var(--flower-color);font-family:system-ui,-apple-system,sans-serif;font-weight:800;line-height:1}
+.stile.flower-spring{--flower-color:#d94b91}.stile.flower-summer{--flower-color:#198754}.stile.flower-autumn{--flower-color:#c83e3e}.stile.flower-winter{--flower-color:#337dcc}
+.stile.flower .flower-char{display:block;font-size:calc(var(--size)*.78);line-height:1;letter-spacing:0;white-space:nowrap;pointer-events:none}
