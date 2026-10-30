@@ -182,8 +182,8 @@ module.exports={BASE,CANDIDATES,validate,profile,metadata:learned};
 "offline/cpu-weights.js":function(module,exports,require){
 'use strict';
 module.exports={
-  "version": 3,
-  "status": "bounded_search_validated",
+  "version": 4,
+  "status": "reward_search_validated",
   "trainedUntil": "2026-10-29T20:00:00.000Z",
   "evaluationFinishedAt": "2026-10-29T20:35:01.471Z",
   "completedGames": 116592,
@@ -300,6 +300,10 @@ module.exports={
       "lookaheadWeight": 35,
       "tacticalDefense": true,
       "placementEV": true
+    },
+    "sanma-general": {
+      "lookaheadValueWeight": 0.4,
+      "valueBudget": 64
     }
   },
   "nextStudy": {
@@ -492,6 +496,198 @@ module.exports={
         },
         "p95UpperMs": 5,
         "fallback": "previous expert unchanged"
+      }
+    }
+  },
+  "rewardStudy": {
+    "baseline": "v1.1.1/code31 expert",
+    "completedGames": 85064,
+    "pairs": 42532,
+    "failures": 0,
+    "trainingGames": 68924,
+    "evaluationGames": 16140,
+    "trainingCutoff": "2026-10-30T03:00:00.000Z",
+    "finishedAt": "2026-10-30T03:45:00.224Z",
+    "validation": {
+      "four-standard": {
+        "variant": "valueCareful",
+        "adopted": false,
+        "metrics": {
+          "pairs": 2018,
+          "meanDifference": 0.711595639246779,
+          "ci95": [
+            -0.26014086014798443,
+            1.6833321386415425
+          ],
+          "rankChipDifference": 0.33448959365708625,
+          "bonusChipDifference": 0.37710604558969274,
+          "latency": {
+            "calls": 147602,
+            "meanMs": 1.662277570247229,
+            "maxMs": 81.01031399983913,
+            "p95UpperMs": 10,
+            "buckets": [
+              94845,
+              20818,
+              18980,
+              10791,
+              2020,
+              147,
+              1,
+              0,
+              0,
+              0
+            ],
+            "bounds": [
+              1,
+              2,
+              5,
+              10,
+              20,
+              50,
+              100,
+              200,
+              500,
+              "Infinity"
+            ]
+          }
+        },
+        "fallback": "v1.1.1 expert unchanged"
+      },
+      "four-hard": {
+        "variant": "valueOnly",
+        "adopted": false,
+        "metrics": {
+          "pairs": 2018,
+          "meanDifference": 0.4380574826560951,
+          "ci95": [
+            -0.4756245460589572,
+            1.3517395113711475
+          ],
+          "rankChipDifference": 0.024777006937561942,
+          "bonusChipDifference": 0.4132804757185332,
+          "latency": {
+            "calls": 115443,
+            "meanMs": 3.0840493873413797,
+            "maxMs": 84.14015800133348,
+            "p95UpperMs": 20,
+            "buckets": [
+              64263,
+              16020,
+              12269,
+              12729,
+              8267,
+              1822,
+              73,
+              0,
+              0,
+              0
+            ],
+            "bounds": [
+              1,
+              2,
+              5,
+              10,
+              20,
+              50,
+              100,
+              200,
+              500,
+              "Infinity"
+            ]
+          }
+        },
+        "fallback": "v1.1.1 expert unchanged"
+      },
+      "sanma-general": {
+        "variant": "valueFast",
+        "adopted": true,
+        "metrics": {
+          "pairs": 2018,
+          "meanDifference": 0.5267591674925669,
+          "ci95": [
+            0.03608458538962811,
+            1.0174337495955057
+          ],
+          "rankChipDifference": 0.19821605550049554,
+          "bonusChipDifference": 0.32854311199207137,
+          "latency": {
+            "calls": 228493,
+            "meanMs": 1.0764099754351273,
+            "maxMs": 64.41747099906206,
+            "p95UpperMs": 10,
+            "buckets": [
+              180758,
+              19201,
+              11307,
+              13600,
+              3385,
+              240,
+              2,
+              0,
+              0,
+              0
+            ],
+            "bounds": [
+              1,
+              2,
+              5,
+              10,
+              20,
+              50,
+              100,
+              200,
+              500,
+              "Infinity"
+            ]
+          }
+        },
+        "fallback": null
+      },
+      "sanma-house": {
+        "variant": "value",
+        "adopted": false,
+        "metrics": {
+          "pairs": 2016,
+          "meanDifference": -0.07589285714285714,
+          "ci95": [
+            -0.9603671397536105,
+            0.8085814254678964
+          ],
+          "rankChipDifference": 0.03968253968253968,
+          "bonusChipDifference": -0.11557539682539683,
+          "latency": {
+            "calls": 251225,
+            "meanMs": 1.070879735962051,
+            "maxMs": 66.00070200115442,
+            "p95UpperMs": 10,
+            "buckets": [
+              200353,
+              20120,
+              11900,
+              14671,
+              3843,
+              335,
+              3,
+              0,
+              0,
+              0
+            ],
+            "bounds": [
+              1,
+              2,
+              5,
+              10,
+              20,
+              50,
+              100,
+              200,
+              500,
+              "Infinity"
+            ]
+          }
+        },
+        "fallback": "v1.1.1 expert unchanged"
       }
     }
   }
@@ -3824,7 +4020,7 @@ module.exports=function(M,J){
   for(const t of model.shan?.baopai||[])add(t);
   const threats=[];for(let l=0;l<4;l++)if(l!==p._menfeng&&model.shoupai?.[l]?.lizhi)threats.push(l);
   const cfg=p.cpuTuning||Profiles.profile(p.cpuLevel||p._rule?.cpuLevel||'standard',p._rule?.nekkyou?'four-hard':'four-standard');
-  return {p,cfg,model,visible,physical,threats,left:t=>Math.max(0,4-(visible.get(normal(t))||0)),cache:new Map()};
+  return {p,cfg,model,visible,physical,threats,left:t=>Math.max(0,4-(visible.get(normal(t))||0)),cache:new Map(),futureCache:new Map()};
  }
  function params(c,hand,choice){return M.Util.hule_param({rule:c.p._rule,menfeng:c.p._menfeng,zhuangfeng:c.model.zhuangfeng||0,lizhi:hand.lizhi?(c.model.openRiichi?.[c.p._menfeng]?3:1):0,baopai:c.model.shan?.baopai||[],jewelChoice:choice});}
  function winValue(c,hand,ron=null,choice){
@@ -3884,7 +4080,18 @@ module.exports=function(M,J){
    let factor=e.n>0?c.cfg.defense:c.cfg.defenseReady;const id=c.model.player_id?.[c.p._menfeng]??0,points=c.model.defen||[];if(c.cfg.placement&&c.model.jushu>=3&&points.length){const lead=points[id]-Math.max(...points.filter((_,i)=>i!==id));factor*=lead>0?1+c.cfg.placement:1-c.cfg.placement/2;}
    if(c.cfg.tacticalDefense&&c.threats.length)factor=Search.defenseFactor(Math.max(factor,e.n>0?450:120),{enabled:true,shanten:e.n,turn:c.model.he?.[c.p._menfeng]?._pai.length||0,remaining:70-(c.model.he||[]).reduce((v,h)=>v+(h._pai?.length||0),0),dealerThreat:c.threats.includes(0),ownValue:e.winValue});
    const open=openDanger(c,a.reply.dapai);let v=e.value-risk*factor-open*1000000;if(c.cfg.tacticalDefense&&c.threats.length&&e.n>0)v+=e.n*650;ranked.push({a,v,n:e.n,open,h});if(v>value){value=v;best=a;}
-  }if(c.cfg.lookaheadWeight){const cache=new Map(),unseen=Math.max(1,136-[...c.visible.values()].reduce((v,n)=>v+n,0));ranked.sort((a,b)=>b.v-a.v);const ceiling=ranked[0].v;for(const r of ranked.slice(0,3)){if(r.open||r.n!==1||r.v<ceiling-300)continue;const k=r.h.toString();if(!cache.has(k))cache.set(k,Search.forecast(r.h,{shanten:M.Util.xiangting,waits:M.Util.tingpai,left:c.left,normal,keep:h=>gemValue(c,h),unseen}).value);r.v+=cache.get(k)*c.cfg.lookaheadWeight;}ranked.sort((a,b)=>b.v-a.v);best=ranked[0].a;}if(c.cfg.beginner&&((c.p._beginnerTurns=(c.p._beginnerTurns||0)+1)%3===0)){ranked.sort((a,b)=>b.v-a.v);const second=ranked.slice(1).find(r=>!r.open&&r.n<=ranked[0].n&&r.a.reply.dapai.slice(0,2)!==ranked[0].a.reply.dapai.slice(0,2));if(second)return second.a;}return best;
+  }if(c.cfg.lookaheadWeight||c.cfg.lookaheadValueWeight){const cache=new Map(),unseen=Math.max(1,136-[...c.visible.values()].reduce((v,n)=>v+n,0));ranked.sort((a,b)=>b.v-a.v);const ceiling=ranked[0].v;for(const r of ranked.slice(0,c.cfg.lookaheadValueWeight?2:3)){if(r.open||r.n!==1||r.v<ceiling-300)continue;const k=r.h.toString();if(!cache.has(k))cache.set(k,Search.forecast(r.h,{shanten:M.Util.xiangting,waits:M.Util.tingpai,left:c.left,normal,keep:h=>gemValue(c,h),unseen}).value);r.v+=cache.get(k)*(c.cfg.lookaheadWeight||0);if(c.cfg.lookaheadValueWeight){const wild=Object.keys(c.p._rule.gemTiles||{}).filter(t=>c.p._rule.gemTiles[t].pocchi&&(r.h.menqian||c.p._rule.gemTiles[t].id==='gold-pocchi'));r.v+=Search.valuedForecast(r.h,{shanten:M.Util.xiangting,waits:M.Util.tingpai,left:c.left,normal,keep:h=>gemValue(c,h),unseen,expand:t=>futurePool(c,t),score:(h,t)=>futureValue(c,h,t),wild,scoreBudget:c.cfg.valueBudget||128}).value*c.cfg.lookaheadValueWeight;}}ranked.sort((a,b)=>b.v-a.v);best=ranked[0].a;}if(c.cfg.beginner&&((c.p._beginnerTurns=(c.p._beginnerTurns||0)+1)%3===0)){ranked.sort((a,b)=>b.v-a.v);const second=ranked.slice(1).find(r=>!r.open&&r.n<=ranked[0].n&&r.a.reply.dapai.slice(0,2)!==ranked[0].a.reply.dapai.slice(0,2));if(second)return second.a;}return best;
+ }
+ function futurePool(c,t){
+  const n=normal(t),gems=Object.keys(c.p._rule.gemTiles||{}).filter(g=>g!==n&&normal(g)===n);
+  if(t!==n)return [{tile:t,count:Math.max(0,1-(c.physical.get(t)||0)),special:true}];
+  return [{tile:n,count:Math.max(0,4-gems.length-(c.physical.get(n)||0)),special:false},...gems.map(g=>({tile:g,count:Math.max(0,1-(c.physical.get(g)||0)),special:true}))];
+ }
+ function futureValue(c,ready,t){
+  const h=ready.clone(),n=normal(t);if(h._bingpai[n[0]][+n[1]]>=4)return 0;
+  const id=c.model.player_id?.[c.p._menfeng]??0;if(h.menqian&&(c.model.defen?.[id]??25000)>=1000)h._lizhi=true;
+  h.zimo(t);const key=h.toString();if(c.futureCache.has(key))return c.futureCache.get(key);
+  let v=winValue(c,h,null,'chips');if(J.has(c.p._rule,h,'carnelian'))v=Math.max(v,winValue(c,h,null,'han'));c.futureCache.set(key,v);return v;
  }
  function openYaku(c,h){
   const text=J.rawTiles(h.toString()).map(normal).join(''),honors=[5,6,7,c.p._menfeng+1,...(c.p._rule['場風牌']||[c.model.zhuangfeng+1])];
@@ -3968,7 +4175,40 @@ function forecast(hand,{shanten,waits,left,normal,keep=()=>0,budget=420,unseen=1
  }
  return {value:sum/Math.max(1,unseen),nodes,truncated:false};
 }
-module.exports={rankValue,placementGain,defenseFactor,forecast};
+// Deterministic stratified integration: exact for short pools, bounded otherwise.
+function integrate(pool,score,slots){
+ const total=pool.reduce((s,x)=>s+x.count,0);if(!total||slots<1)return 0;
+ if(pool.length<=slots)return pool.reduce((s,x)=>s+x.count*score(x.tile),0);
+ let sum=0;for(let i=0;i<slots;i++){const ticket=(i+.5)*total/slots;let n=0;for(const x of pool){n+=x.count;if(n>=ticket){sum+=score(x.tile);break;}}}
+ return total*sum/slots;
+}
+function valuedForecast(hand,{shanten,waits,left,normal,keep=()=>0,unseen=100,expand,score,wild=[],budget=420,scoreBudget=128}){
+ if(shanten(hand)!==1||hand.lizhi)return {value:0,nodes:0,scoreCalls:0};
+ const branches=[];let nodes=0;
+ for(const draw of waits(hand)){
+  const count=left(draw);if(!count||hand._bingpai[draw[0]][+draw[1]]>=4)continue;
+  const full=hand.clone().zimo(draw);let best=null,v=-Infinity;
+  for(const cut of full.get_dapai()||[]){
+   if(++nodes>budget)break;
+   const next=full.clone().dapai(cut);if(shanten(next)!==0)continue;
+   const live=waits(next).reduce((s,t)=>s+Math.max(0,left(t)-(normal(t)===normal(draw)?1:0)),0),q=live+Math.min(4,Math.max(0,keep(next))*.04);
+   if(q>v){v=q;best=next;}
+  }
+  if(best)branches.push({draw,count,hand:best});if(nodes>=budget)break;
+ }
+ let value=0,calls=0;
+ const perBranch=Math.max(1,Math.floor(scoreBudget/Math.max(1,branches.length)));
+ for(const b of branches){
+  const pool=new Map();for(const t of [...waits(b.hand),...wild])for(const x of expand(t))if(x.count>0)pool.set(x.tile,{...x});
+  for(const x of pool.values())if(normal(x.tile)===normal(b.draw)){const n=left(normal(b.draw));x.count*=n?Math.max(0,n-1)/n:0;}
+  const all=[...pool.values()].filter(x=>x.count>0),special=all.filter(x=>x.special),plain=all.filter(x=>!x.special);
+  const slots=Math.min(perBranch,scoreBudget-calls),specialSlots=plain.length?Math.min(special.length,Math.max(1,Math.floor(slots/2))):slots;
+  const cache=new Map(),evaluate=t=>{if(cache.has(t))return cache.get(t);if(calls>=scoreBudget)return 0;calls++;const reward=score(b.hand,t);cache.set(t,reward);return reward;};
+  value+=b.count*(integrate(special,evaluate,specialSlots)+integrate(plain,evaluate,slots-specialSlots));
+ }
+ return {value:value/Math.max(1,unseen)**2,nodes:Math.min(nodes,budget),scoreCalls:calls};
+}
+module.exports={rankValue,placementGain,defenseFactor,forecast,valuedForecast};
 
 },
 "offline/cpu-legacy.js":function(module,exports,require){
@@ -4186,7 +4426,7 @@ module.exports=function(E){
  }
  function cpu(game,tuning=null,level=game.options.cpuLevel||'standard'){if(!tuning&&(level==='standard'||level==='expert'&&E.CpuProfiles.metadata.selected?.[game.options.house.rankOnly?'sanma-house':'sanma-general']==='baseline'))return legacyCpu(game);const cfg=tuning||E.CpuProfiles.profile(level,game.options.house.rankOnly?'sanma-house':'sanma-general'),evalCache=new Map(),winCache=new Map();const id=game.actor,options=game.actions();if(!options.length)return null;const win=options.find(a=>a.reply.win);if(win)return win.reply;const north=options.find(a=>a.reply.nuki);if(north)return north.reply;const discards=options.filter(a=>a.reply.discard);if(discards.length){const visible=new Map(),physical=new Map(),add=t=>{const raw=t.slice(0,2);physical.set(raw,(physical.get(raw)||0)+1);t=S.normal(t);visible.set(t,(visible.get(t)||0)+1);};J.rawTiles(game.hands[id].toString()).forEach(add);for(let l=0;l<3;l++){for(const t of game.rivers[l])if(!t.endsWith('-'))add(t);if(l!==id)for(const m of game.hands[l]._fulou)J.rawTiles(m).forEach(add);}game.indicators.filter(t=>t[0]!=='f').forEach(add);for(let l=0;l<3;l++)for(let n=0;n<game.north[l];n++)add('z4');const left=t=>Math.max(0,4-(visible.get(S.normal(t))||0)),unseen=108-[...visible.values()].reduce((a,b)=>a+b,0);let best=discards[0],value=-Infinity;const ranked=[];
    for(const a of discards){const h=game.hands[id].clone().dapai(a.reply.discard),n=S.shanten(h),wait=S.waits(h);let ownValue=0;let v=-n*1000+wait.reduce((n,t)=>n+left(t),0)*cfg.wait+J.rawTiles(h.toString()).reduce((n,t)=>n+(t==='p0'||t==='s0'?8:t==='pA'||t==='sA'?4:0),0)*cfg.gem+(a.reply.riichi?(level==='standard'&&!tuning?35:cfg.riichi):0);if(n===0&&(level==='expert'||tuning)){const ready=h.clone();if(a.reply.riichi)ready._lizhi=true;const key=ready.toString();let extra=evalCache.get(key);if(extra===undefined){let total=0,count=0;const ds=new Map();for(const t of wait){if(/[ps]5/.test(t)){const mixed=game.options.house.fiveSet==='mixed';for(const [token,num] of [[t,mixed?2:0],[t[0]+'A',mixed?1:2],[t[0]+'0',mixed?1:2]])ds.set(token,Math.max(0,num-(physical.get(token)||0)));}else ds.set(t,left(t));}if(ready.lizhi)for(const type of game.options.pocchiTypes){const t=S.POCCHI[type];ds.set(t,Math.max(0,1-(physical.get(t)||0)));}for(const [t,n] of ds){if(!n||ready._bingpai[S.normal(t)[0]][+S.normal(t)[1]]>=4)continue;const r=game.score(id,ready.clone().zimo(t),null,{preview:true,honba:0});if(!r)continue;const point=id===game.dealer?r.pay.child*2:r.pay.child+r.pay.dealer;let chips=r.lines.reduce((n,l)=>n+l.amount,0)+(r.diceEligible?3:0)+(game.options.flowerRules.winter==='dice'?r.eff[3]*3.5:0);if(r.white)chips*=({normal:1,reverse:-1,double:2,reverseDouble:-2})[Object.keys(S.POCCHI).find(k=>S.POCCHI[k]===r.pocchi)]||1;const delta=[0,0,0];delta[id]=point;for(let other=0;other<3;other++)if(other!==id)delta[other]=-((id===game.dealer||other!==game.dealer)?r.pay.child:r.pay.dealer);const placement=cfg.placementEV?Search.placementGain(game.points,id,delta,game.options.house.fixedUma?[20,0,-20]:[20,-10,-10],game.round):0;total+=n*Math.max(1,point+(chips*2+placement)*cfg.chipValue);count+=n;}winCache.set(key,count?total/count:0);extra=count?Math.min(cfg.readyCap,Math.log2(1+total/count)*cfg.ready):-120;evalCache.set(key,extra);}ownValue=winCache.get(key)||0;v+=extra;}if(a.reply.shuba)v+=shubaIncentive(game,id,h,wait,left,unseen);for(let l=0;l<3;l++)if(l!==id&&game.hands[l].lizhi)v-=analyzeDefense({tile:S.normal(a.reply.discard),visible,river:game.rivers[l].map(S.normal)}).score*Search.defenseFactor(cfg.tacticalDefense?Math.max(n>0?cfg.defense:cfg.defenseReady,n>0?450:120):(n>0?cfg.defense:cfg.defenseReady),{enabled:cfg.tacticalDefense,shanten:n,turn:game.rivers[id].length,remaining:game.wall.length,dealerThreat:l===game.dealer,ownValue});for(let l=0;l<3;l++)if(!game.hands[id].lizhi&&l!==id&&game.openRiichi[l]&&!game.furiten[l]&&!game.rivers[l].some(p=>S.waits(game.hands[l]).includes(S.normal(p)))&&game.score(l,game.hands[l],a.reply.discard.slice(0,2)+signedDirection(id,l),{preview:true}))v-=1000000;if(cfg.tacticalDefense&&n>0&&game.hands.some((h,l)=>l!==id&&h.lizhi))v+=n*650;ranked.push({a,v,n,h});if(v>value){value=v;best=a;}}
-   if(cfg.lookaheadWeight){const cache=new Map();ranked.sort((a,b)=>b.v-a.v);const ceiling=ranked[0].v;for(const r of ranked.slice(0,3)){if(r.n!==1||r.v<ceiling-300||r.v<-100000)continue;const key=r.h.toString();if(!cache.has(key))cache.set(key,Search.forecast(r.h,{shanten:S.shanten,waits:S.waits,left,normal:S.normal,keep:h=>J.rawTiles(h.toString()).reduce((v,t)=>v+(/[ps][0A]/.test(t)?8:0),0),unseen}).value);r.v+=cache.get(key)*cfg.lookaheadWeight;}ranked.sort((a,b)=>b.v-a.v);best=ranked[0].a;}
+   if(cfg.lookaheadWeight||cfg.lookaheadValueWeight){const cache=new Map();ranked.sort((a,b)=>b.v-a.v);const ceiling=ranked[0].v;for(const r of ranked.slice(0,cfg.lookaheadValueWeight?2:3)){if(r.n!==1||r.v<ceiling-300||r.v<-100000)continue;const key=r.h.toString();if(!cache.has(key))cache.set(key,Search.forecast(r.h,{shanten:S.shanten,waits:S.waits,left,normal:S.normal,keep:h=>J.rawTiles(h.toString()).reduce((v,t)=>v+(/[ps][0A]/.test(t)?8:0),0),unseen}).value);r.v+=cache.get(key)*(cfg.lookaheadWeight||0);if(cfg.lookaheadValueWeight){const mixed=game.options.house.fiveSet==='mixed',pool=t=>{const n=S.normal(t);if(t!==n)return [{tile:t,count:Math.max(0,1-(physical.get(t)||0)),special:true}];if(/[ps]5/.test(n))return [[n,mixed?2:0],[n[0]+'0',mixed?1:2],[n[0]+'A',mixed?1:2]].map(([tile,num])=>({tile,count:Math.max(0,num-(physical.get(tile)||0)),special:tile!==n}));if(n==='z5')return [[n,4-game.options.pocchiTypes.length],...game.options.pocchiTypes.map(k=>[S.POCCHI[k],1])].map(([tile,num])=>({tile,count:Math.max(0,num-(physical.get(tile)||0)),special:tile!==n}));return [{tile:n,count:left(n),special:false}];};const reward=(ready,t)=>{const h=ready.clone(),n=S.normal(t);if(h._bingpai[n[0]][+n[1]]>=4)return 0;if(h.menqian&&game.points[id]>=1000)h._lizhi=true;h.zimo(t);const key='future:'+h.toString();if(winCache.has(key))return winCache.get(key);const v=game.score(id,h,null,{preview:true,honba:0});if(!v){winCache.set(key,0);return 0;}const points=id===game.dealer?v.pay.child*2:v.pay.child+v.pay.dealer;let chips=v.lines.reduce((s,l)=>s+l.amount,0)+(v.diceEligible?3:0)+(game.options.flowerRules.winter==='dice'?v.eff[3]*3.5:0);if(v.white)chips*=({normal:1,reverse:-1,double:2,reverseDouble:-2})[Object.keys(S.POCCHI).find(k=>S.POCCHI[k]===v.pocchi)]||1;const value=Math.max(0,points+chips*cfg.chipValue*2);winCache.set(key,value);return value;};r.v+=Search.valuedForecast(r.h,{shanten:S.shanten,waits:S.waits,left,normal:S.normal,unseen,expand:pool,score:reward,wild:r.h.menqian?game.options.pocchiTypes.map(k=>S.POCCHI[k]):[],scoreBudget:cfg.valueBudget||128}).value*cfg.lookaheadValueWeight;}}ranked.sort((a,b)=>b.v-a.v);best=ranked[0].a;}
    if(cfg.beginner){game._beginnerTurns??=[0,0,0];if(++game._beginnerTurns[id]%3===0){ranked.sort((a,b)=>b.v-a.v);const second=ranked.slice(1).find(r=>r.n<=ranked[0].n&&r.v>-100000&&r.a.reply.discard.slice(0,2)!==ranked[0].a.reply.discard.slice(0,2));if(second)return second.a.reply;}}return best.reply;
   }
   // Keep the first version conservative: honor pon only when shanten improves after discard.
