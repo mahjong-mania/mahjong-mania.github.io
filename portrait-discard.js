@@ -17,7 +17,8 @@
   return hand.querySelector('button.draw:not(:disabled)');
  }
  function sync(){const disabled=!current();if(button.disabled!==disabled)button.disabled=disabled;}
- button.onclick=()=>{const draw=current();if(!draw)return;button.disabled=true;draw.click();sync();};
+ let pressedDraw=null;button.addEventListener('pointerdown',()=>{pressedDraw=current();});
+ button.onclick=event=>{const draw=current();if(!draw||event.detail&&draw!==pressedDraw)return;button.disabled=true;draw.click();sync();};
  const observer=new MutationObserver(records=>{if(records.some(r=>!panel.contains(r.target)))sync();});
  observer.observe(document.body,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['disabled','open','class']});
  sync();
