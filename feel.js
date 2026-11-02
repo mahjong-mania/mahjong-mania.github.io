@@ -11,5 +11,18 @@
  function autoReply(options,riichi){if(!settings.auto||!riichi||options.some(a=>a.reply.hule||a.reply.win||a.reply.gang||a.reply.kan||a.reply.nuki))return null;return options.find(a=>(a.reply.dapai?.endsWith('_')||a.reply.discard?.endsWith('_'))&&!a.reply.riichi)?.reply||null;}
  function mount(target,changed=()=>{}){if(!target)return;const box=document.createElement('fieldset');box.className='feel-settings';box.style.cssText='margin:16px 0;padding:12px;display:grid;gap:12px';const title=document.createElement('legend');title.textContent='音・操作・速度';box.append(title);for(const [k,label]of [['sound','効果音'],['auto','リーチ後に自動ツモ切り']]){const row=document.createElement('label'),input=document.createElement('input');input.type='checkbox';input.checked=settings[k];input.dataset.feel=k;input.onchange=()=>{settings[k]=input.checked;save();if(k==='sound'&&input.checked){unlock();sound('tile');}changed();};row.append(input,' '+label);box.append(row);}const row=document.createElement('label'),select=document.createElement('select');row.append('CPUの打牌速度 ');for(const [value,label]of [[350,'速い'],[650,'標準'],[1000,'ゆっくり']]){const o=document.createElement('option');o.value=value;o.textContent=label;select.append(o);}select.value=settings.pace;select.dataset.feel='pace';select.onchange=()=>{settings.pace=Number(select.value);save();changed();};row.append(select);box.append(row);target.append(box);}
  function save(){try{localStorage.setItem(key,JSON.stringify(settings));}catch{}}
- globalThis.MahjongFeel={settings,sound,reach,call,autoReply,mount};
+ // Each hand is a separate render generation, including cached images and paint.
+ const tileVersions=new WeakMap();
+ function lockTiles(root,enabled){
+  let state=tileVersions.get(root);if(!state){state={version:0,pressed:null};tileVersions.set(root,state);root.addEventListener('pointerdown',()=>{state.pressed=state.version;},true);}
+  const version=++state.version;state.ready=false;root.dataset.tilesState='loading';root.setAttribute('aria-busy','true');for(const b of enabled)b.disabled=true;
+  const images=[...root.querySelectorAll('img')];
+  const loaded=img=>img.complete?Promise.resolve(img.naturalWidth>0):new Promise(resolve=>{img.addEventListener('load',()=>resolve(true),{once:true});img.addEventListener('error',()=>resolve(false),{once:true});});
+  Promise.all(images.map(async img=>await loaded(img)&&(!img.decode||await img.decode().then(()=>true,()=>false)))).then(ok=>{
+   if(state.version!==version)return;if(ok.some(x=>!x)){root.dataset.tilesState='error';root.setAttribute('aria-busy','false');return;}
+   requestAnimationFrame(()=>requestAnimationFrame(()=>{if(state.version!==version)return;state.ready=true;root.dataset.tilesState='ready';root.setAttribute('aria-busy','false');for(const b of enabled)if(b.isConnected)b.disabled=false;}));
+  });
+ }
+ function tilesUsable(root,event){const s=tileVersions.get(root);return !!s?.ready&&(!event?.detail||s.pressed===s.version);}
+ globalThis.MahjongFeel={settings,sound,reach,call,autoReply,mount,lockTiles,tilesUsable};
 })();

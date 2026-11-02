@@ -2,6 +2,7 @@
 (function(){const modules={"offline/engine.js":function(module,exports,require){
 'use strict';
 const CpuProfiles=require("offline/cpu-profiles.js");
+const ReactionGate=require("offline/reaction-gate.js");
 const M = require("vendor/majiang-core/lib/index.js");
 const J=require("offline/jewels.js");
 const Replay=require("offline/replay.js")({M,J});
@@ -14,7 +15,7 @@ function rule(extra={}) {
  const legacy={white:'topaz','amethyst-white':'amethyst-white',gold:'gold-pocchi',gane:'gane-pocchi'};
  const ids=extra.gemSelection||(extra.nekkyou?J.NEKKYOU_SELECTION:null)||['lapis','amethyst-p','tourmaline',...modes.map(x=>legacy[x]||x)];
  const gemTiles=J.configure(ids);
- return M.rule({openRiichi:true,openRiichiCost:2000,'カンドラ後乗せ':false,'場数':1,'延長戦方式':0,'本場点':1500,'切り上げ満貫あり':true,'場風牌':[1,3],'赤牌':{m:0,p:0,s:0},jewelBonus:true,fullJewel:true,...extra,unlockedYaku:extra.nekkyou?'全祝儀手役':extra.unlockedYaku,
+ return M.rule({openRiichi:true,openRiichiCost:2000,'カンドラ後乗せ':false,'四家立直流局あり':false,'場数':1,'延長戦方式':0,'本場点':1500,'切り上げ満貫あり':true,'場風牌':[1,3],'赤牌':{m:0,p:0,s:0},jewelBonus:true,fullJewel:true,...extra,unlockedYaku:extra.nekkyou?'全祝儀手役':extra.unlockedYaku,
   gemSelection:ids.slice(),gemTiles,pocchiModes:modes.slice(),whitePocchi:ids.some(x=>['topaz','amethyst-white'].includes(x)),pocchiAmethyst:ids.includes('amethyst-white'),goldPocchi:ids.includes('gold-pocchi'),ganePocchi:ids.includes('gane-pocchi')});
 }
 function actions(p,msg) {
@@ -66,7 +67,8 @@ class Player extends M.Player {
   // The base Player marks an offered winning discard as passed after this handler
   // returns. Capture legal reactions before an asynchronous riichi popup yields.
   const opts=actions(this,this.message);this._decisionOptions=opts;
-  const proceed=()=>{if(!opts.length)return callback({});this.decide(opts,reply=>callback(reply||{}),this.message,this);};
+  const present=(options,done)=>{this._decisionOptions=options;if(!options.length)return done({});this.decide(options,reply=>done(reply||{}),this.message,this);};
+  const proceed=()=>{if(this._reactionGate)return this._reactionGate.collect(opts,present,callback);present(opts,callback);};
   if(this.message.hule&&this.confirmWin){let replied=false;return this.confirmWin(this.message.hule,()=>{if(replied)return;replied=true;proceed();},this);}
   if(this.message.dapai?.p.endsWith('*')&&this.confirmRiichi){let replied=false;return this.confirmRiichi(this.message.dapai,()=>{if(replied)return;replied=true;proceed();},this);}
   proceed();
@@ -111,6 +113,8 @@ class Game extends M.Game {
  reply_pingju(){this.captureDealerChoice();return super.reply_pingju();}
  call_players(type,msg,timeout){
   if(this._rule.nekkyou)this._rule.jewelIndicators=this.model.shan?.baopai||[];
+  const gate=['dapai','gang'].includes(type)&&this._players.length===4&&this._players.every(p=>p instanceof Player)?new ReactionGate():null;
+  for(const player of this._players)player._reactionGate=gate;
   this._dealerChoiceOffered=false;
   const eligible=this._lianzhuang&&(type==='hule'&&this._hule.length===0||type==='pingju'&&msg[0].pingju.name==='荒牌平局'&&!!msg[0].pingju.shoupai[0]);
   if(eligible){const m=this.model,points=m.defen.slice();m.player_id.forEach((id,l)=>points[id]+=this._fenpei[l]);if(points.every(n=>n>=0&&n<55000)){this._dealerChoiceOffered=true;msg[0].dealerChoice={points,self:m.player_id[0],round:m.zhuangfeng*4+m.jushu};}}
@@ -691,6 +695,28 @@ module.exports={
       }
     }
   }
+};
+
+},
+"offline/reaction-gate.js":function(module,exports,require){
+'use strict';
+// Ask every eligible winner first. Calls are offered only if everyone declines.
+module.exports = class ReactionGate {
+ constructor(size=4){this.size=size;this.entries=[];}
+ collect(options,present,finish){
+  const entry={options,present,finish};this.entries.push(entry);
+  if(this.entries.length!==this.size)return;
+  const winners=this.entries.filter(e=>e.options.some(a=>a.reply.hule));
+  const calls=()=>{for(const e of this.entries){const options=e.options.filter(a=>!a.reply.hule);if(options.length)e.present(options,e.finish);else e.finish({});}};
+  if(!winners.length)return calls();
+  let left=winners.length;
+  for(const e of winners){let answered=false;e.present(e.options.filter(a=>a.reply.hule||!Object.keys(a.reply).length),reply=>{
+   if(answered)return;answered=true;e.answer=reply||{};
+   if(--left)return;
+   if(winners.some(w=>w.answer.hule)){for(const item of this.entries)item.finish(item.answer?.hule?item.answer:{});}
+   else calls();
+  });}
+ }
 };
 
 },
@@ -2304,7 +2330,7 @@ module.exports = class Game {
             model.lizhibang+=cost/1000;
 
             if (this._lizhi.filter(x=>x).length == 4
-                && this._rule['途中流局あり'])
+                && this._rule['途中流局あり'] && this._rule['四家立直流局あり'] !== false)
             {
                 let shoupai = model.shoupai.map(s=>s.toString());
                 return this.delay(()=>this.pingju('四家立直', shoupai));
@@ -4337,7 +4363,7 @@ module.exports=function(E){
   actions(){const id=this.actor,h=this.hands[id],out=[],add=(label,reply)=>out.push({label,reply});if(this.phase==='roundEnd'){add(this.finished?'対局結果へ':'次の局へ',{next:true});return out;}if(this.phase==='finished')return out;
    if(['react','rob','robClosed','nuki'].includes(this.phase)){
     const ron=this.canRon(id);if(ron)add('ロン',{win:true});if(ron&&this.last?.openTrap)return out;if(ron&&h.lizhi&&!this.options.house.riichiPass)return out;
-    if(this.phase==='react'&&!h.lizhi){const t=this.last.tile+signedDirection(this.last.from,id);for(const m of h.get_peng_mianzi(t)||[])add('ポン',{pon:m});if((this.kans<4||this.options.house.unlimitedKan)&&(this.wall.length>=3||this.options.house.unlimitedKan&&(this.wall.length===2&&this.kanReserve.length===2)))for(const m of h.get_gang_mianzi(t)||[])add('大明カン',{kan:m});}
+    if(!this.ronOnly&&this.phase==='react'&&!h.lizhi){const t=this.last.tile+signedDirection(this.last.from,id);for(const m of h.get_peng_mianzi(t)||[])add('ポン',{pon:m});if((this.kans<4||this.options.house.unlimitedKan)&&(this.wall.length>=3||this.options.house.unlimitedKan&&(this.wall.length===2&&this.kanReserve.length===2)))for(const m of h.get_gang_mianzi(t)||[])add('大明カン',{kan:m});}
     add('見送り',{pass:true});return out;
    }
    if(this.phase!=='turn')return out;
@@ -4353,13 +4379,13 @@ module.exports=function(E){
    if(!reply.next)R.decision(this.replayRecord,id,this.options.participantTypes?.[id]||(id===0?'human':'cpu'),reply,this.actions(),R.sanmaView(this));
    R.event(this.replayRecord,'action',{round:this.rounds,playerId:id,reply});
    if(reply.next){if(this.finished){this.phase='finished';return;}if(!this.repeat){this.dealer=(this.dealer+1)%3;this.round++;}this.honba=this.nextHonba;this.startRound();return;}
-   if(['react','rob','robClosed','nuki'].includes(this.phase)){const hadRon=this.canRon(id);if(hadRon&&!reply.win)this.furiten[id]=true;this.responses.push({id,reply});this.responseIndex++;if(this.responseIndex===this.responders.length)this.resolveResponses();return;}
+   if(['react','rob','robClosed','nuki'].includes(this.phase)){const hadRon=this.canRon(id);if(hadRon&&!reply.win)this.furiten[id]=true;this.responses.push({id,reply});this.responseIndex++;if(this.responseIndex===this.responders.length){if(this.ronOnly&&!this.responses.some(r=>r.reply.win)){this.ronOnly=false;this.responders=this.callResponders;this.responses=[];this.responseIndex=0;}else this.resolveResponses();}return;}
    if(reply.win){this.win([id],null);return;}
    if(reply.nuki){const t=S.normal(h._zimo)==='z4'?h._zimo:'z4';if(this.options.house.nukiRon){this.beginResponses(id,t,'nuki');return;}h.dapai(t);this.north[id]++;this.log.unshift(this.names[id]+'：北を抜きました');this.draw(false,this.options.house.northExtended);return;}
    if(reply.kan){if(/[+=-]/.test(reply.kan)){this.beginResponses(id,reply.kan[0]+reply.kan.slice(-1),'rob',reply.kan);return;}if(this.options.house.kokushiRobClosed){this.beginResponses(id,reply.kan[0]+reply.kan[1],'robClosed',reply.kan);return;}this.commitKan(id,reply.kan);return;}
    if(reply.discard){const choices=this.actions(),discards=choices.filter(a=>a.reply.discard);const openTrap=!h.lizhi&&discards.length>0&&!choices.some(a=>a.reply.win||a.reply.kan||a.reply.nuki)&&discards.every(a=>[0,1,2].some(l=>l!==id&&this.openRiichi[l]&&!this.furiten[l]&&!this.rivers[l].some(p=>S.waits(this.hands[l]).includes(S.normal(p)))&&this.score(l,this.hands[l],a.reply.discard.slice(0,2)+signedDirection(id,l),{preview:true})));const was=h.lizhi,t=reply.discard;h.dapai(t+(reply.riichi?'*':''));if(reply.riichi){const cost=reply.shuba?(reply.open?6000:5000):reply.open?this.options.house.openCost:1000;this.riichiDeposit[id]=cost;this.points[id]-=cost;this.sticks+=cost/1000;this.shuba[id]=!!reply.shuba;if(reply.shuba)this.shubaUsed[id]=true;this.ippatsu[id]=true;this.openRiichi[id]=!!reply.open;this.log.unshift(this.names[id]+'：'+(reply.shuba?'シュバ':'')+(reply.open?'オープン':'')+'リーチ');}else if(was)this.ippatsu[id]=false;if(!was&&(this.indicators.some(p=>S.dora(p)===S.normal(t))||/^[ps][0A]/.test(t)))this.discardedDora[id]=true;this.rivers[id].push(t.slice(0,2)+(reply.riichi?'*':''));this.mustDiscard=false;this.beginResponses(id,t.slice(0,2),'react',null,!!reply.riichi);this.last.openTrap=!!openTrap;}
   }
-  beginResponses(from,tile,phase,kan=null,riichi=false){this.last={from,tile,kan,riichi};this.phase=phase;this.responders=[(from+1)%3,(from+2)%3];this.responses=[];this.responseIndex=0;}
+  beginResponses(from,tile,phase,kan=null,riichi=false){this.last={from,tile,kan,riichi};this.phase=phase;this.responders=[(from+1)%3,(from+2)%3];this.responses=[];this.responseIndex=0;this.ronOnly=false;this.callResponders=this.responders.slice();const winners=this.responders.filter(id=>this.canRon(id));if(winners.length){this.ronOnly=true;this.responders=winners;}}
   commitKan(id,m,open=false){this.anyCalls=true;if(!open)this.hands[id].gang(m);this.dead.push(...(this.wall.length===2&&this.kanReserve.length===2?this.kanReserve.splice(0,2):[this.wall.shift(),this.wall.shift()]));this.kans++;R.event(this.replayRecord,'kan',{round:this.rounds,playerId:id,meld:m,open,indicators:this.indicators.slice()});this.ippatsu=[false,false,false];this.turn=id;this.log.unshift(this.names[id]+'：カン');this.draw(true);}
   resolveResponses(){const wins=this.responses.filter(r=>r.reply.win).map(r=>r.id);if(wins.length){if(this.last.riichi){
     const id=this.last.from;this.points[id]+=this.riichiDeposit[id];this.sticks-=this.riichiDeposit[id]/1000;this.riichiDeposit[id]=0;
