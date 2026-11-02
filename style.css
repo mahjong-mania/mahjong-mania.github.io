@@ -54,3 +54,6 @@ dialog{max-height:calc(100dvh - env(safe-area-inset-top,0px) - env(safe-area-ins
 #dealer-choice-note{flex-basis:100%;margin:3px 0;color:#f1d897;font-size:12px;text-align:right}
 
 #remote-entry:disabled{opacity:.45;filter:grayscale(1);cursor:not-allowed;width:100%;text-align:left}
+/* Keep all concealed tiles anchored when the separate draw tile appears. */
+#hand{justify-content:flex-start}
+#hand .tile{flex:0 0 min(var(--tile),calc((100% - 35px)/14));width:min(var(--tile),calc((100% - 35px)/14))}
