@@ -10,12 +10,13 @@ const Physical=require("offline/physical.js")(M);
 const PAYOUT = [50,25,-25,-50];
 const UNLOCK_YAKU = ['平和','断幺九','一盃口','三色同順','一気通貫','混全帯幺九','七対子','対々和','三暗刻','三色同刻','混老頭','小三元','混一色','純全帯幺九','二盃口','清一色'];
 function rule(extra={}) {
+ for(const key of ['四家立直流局あり','四風連打流局あり'])if(extra[key]!==undefined&&typeof extra[key]!=='boolean')throw Error('途中流局設定が不正です');
  if(extra.cpuLevel!==undefined)CpuProfiles.validate(extra.cpuLevel);
  const modes=extra.pocchiModes||[extra.pocchiMode||'amethyst-white'];
  const legacy={white:'topaz','amethyst-white':'amethyst-white',gold:'gold-pocchi',gane:'gane-pocchi'};
  const ids=extra.gemSelection||(extra.nekkyou?J.NEKKYOU_SELECTION:null)||['lapis','amethyst-p','tourmaline',...modes.map(x=>legacy[x]||x)];
  const gemTiles=J.configure(ids);
- return M.rule({openRiichi:true,openRiichiCost:2000,'カンドラ後乗せ':false,'四家立直流局あり':false,'場数':1,'延長戦方式':0,'本場点':1500,'切り上げ満貫あり':true,'場風牌':[1,3],'赤牌':{m:0,p:0,s:0},jewelBonus:true,fullJewel:true,...extra,unlockedYaku:extra.nekkyou?'全祝儀手役':extra.unlockedYaku,
+ return M.rule({openRiichi:true,openRiichiCost:2000,'カンドラ後乗せ':false,'四家立直流局あり':false,'四風連打流局あり':true,'場数':1,'延長戦方式':0,'本場点':1500,'切り上げ満貫あり':true,'場風牌':[1,3],'赤牌':{m:0,p:0,s:0},jewelBonus:true,fullJewel:true,...extra,unlockedYaku:extra.nekkyou?'全祝儀手役':extra.unlockedYaku,
   gemSelection:ids.slice(),gemTiles,pocchiModes:modes.slice(),whitePocchi:ids.some(x=>['topaz','amethyst-white'].includes(x)),pocchiAmethyst:ids.includes('amethyst-white'),goldPocchi:ids.includes('gold-pocchi'),ganePocchi:ids.includes('gane-pocchi')});
 }
 function actions(p,msg) {
@@ -2339,7 +2340,7 @@ module.exports = class Game {
 
         if (this._diyizimo && model.lunban == 3) {
             this._diyizimo = false;
-            if (this._fengpai) {
+            if (this._fengpai && this._rule['四風連打流局あり'] !== false) {
                 return this.delay(()=>this.pingju('四風連打'), 0);
             }
         }
@@ -4601,16 +4602,16 @@ const crypto=require("online/crypto.js"),E=require("offline/engine.js");
 const copy=x=>JSON.parse(JSON.stringify(x));
 class Rooms {
  constructor({maxRooms=8,turnMs=20000,callMs=10000,confirmMs=15000,speed=0,idleMs=2*3600000}={}){Object.assign(this,{maxRooms,turnMs,callMs,confirmMs,speed,idleMs});this.rooms=new Map();}
- create(name){this.expire();if(this.rooms.size>=this.maxRooms)throw Error('現在満室です。しばらく待ってください');let code;do{code=crypto.randomBytes(4).toString('hex').toUpperCase();}while(this.rooms.has(code));const r={code,host:0,members:[],selection:E.J.DEFAULT.slice(),nekkyou:false,cpuLevel:'standard',game:null,phase:'lobby',touched:Date.now(),id:crypto.randomUUID()};this.rooms.set(code,r);return this.join(code,name);}
+ create(name){this.expire();if(this.rooms.size>=this.maxRooms)throw Error('現在満室です。しばらく待ってください');let code;do{code=crypto.randomBytes(4).toString('hex').toUpperCase();}while(this.rooms.has(code));const r={code,host:0,members:[],selection:E.J.DEFAULT.slice(),nekkyou:false,fourRiichiAbort:false,fourWindsAbort:true,cpuLevel:'standard',game:null,phase:'lobby',touched:Date.now(),id:crypto.randomUUID()};this.rooms.set(code,r);return this.join(code,name);}
  room(code){const r=this.rooms.get(String(code).toUpperCase());if(!r)throw Error('ルームが見つかりません。サーバー再起動の場合は作り直してください');return r;}
  join(code,name){const r=this.room(code);if(r.phase!=='lobby')throw Error('対局開始後は新規参加できません');if(r.members.length>=4)throw Error('満席です');name=String(name||'').trim();if(!name||name.length>16)throw Error('名前は1〜16文字にしてください');const m={id:r.members.length,name,token:crypto.randomBytes(32).toString('hex'),events:[],waiters:new Set(),pending:null,ready:false,lastSeen:Date.now(),joined:Date.now(),seen:new Map()};r.members.push(m);r.touched=Date.now();this.lobby(r);return {room:r.code,token:m.token,self:m.id};}
  auth(code,token){const r=this.room(code),m=r.members.find(m=>m.token===token);if(!m)throw Error('参加情報が無効です');m.lastSeen=Date.now();r.touched=Date.now();return {r,m};}
  emit(m,type,data){if(m.events.length>=20000)throw Error('対局ログ上限です');m.events.push({seq:m.events.length+1,type,data:copy(data)});for(const wake of m.waiters)wake();m.waiters.clear();}
- lobby(r){const data={room:r.code,host:r.host,phase:r.phase,selection:r.selection,nekkyou:r.nekkyou,cpuLevel:r.cpuLevel,members:r.members.map(m=>({id:m.id,name:m.name,ready:m.ready,connected:Date.now()-m.lastSeen<45000})),cpu:4-r.members.length};for(const m of r.members)this.emit(m,'lobby',data);}
+ lobby(r){const data={room:r.code,host:r.host,phase:r.phase,selection:r.selection,nekkyou:r.nekkyou,fourRiichiAbort:r.fourRiichiAbort===true,fourWindsAbort:r.fourWindsAbort!==false,cpuLevel:r.cpuLevel,members:r.members.map(m=>({id:m.id,name:m.name,ready:m.ready,connected:Date.now()-m.lastSeen<45000})),cpu:4-r.members.length};for(const m of r.members)this.emit(m,'lobby',data);}
  request(r,m,type,data,callback,ms,fallback){const id=crypto.randomUUID(),deadline=Date.now()+ms;const finish=reply=>{if(m.pending?.id!==id)return;clearTimeout(m.pending.timer);m.pending=null;this.emit(m,'resolved',{id});callback(reply);};m.pending={id,type,data,deadline,finish,timer:setTimeout(()=>finish(fallback()),ms)};m.pending.timer.unref?.();this.emit(m,'prompt',{id,type,data,deadline});}
  command(r,m,command){
   const {type}=command;
-  if(type==='configure'){if(m.id!==r.host||r.phase!=='lobby')throw Error('設定変更は開始前のホストのみです');E.J.configure(command.selection);if(command.nekkyou!==undefined&&typeof command.nekkyou!=='boolean')throw Error('ルール設定が不正です');if(command.cpuLevel!==undefined)E.CpuProfiles.validate(command.cpuLevel);r.cpuLevel=command.cpuLevel||r.cpuLevel||'standard';r.selection=command.selection.slice();r.nekkyou=command.nekkyou===true;for(const p of r.members)p.ready=false;this.lobby(r);return;}
+  if(type==='configure'){if(m.id!==r.host||r.phase!=='lobby')throw Error('設定変更は開始前のホストのみです');E.J.configure(command.selection);for(const k of ['fourRiichiAbort','fourWindsAbort'])if(command[k]!==undefined&&typeof command[k]!=='boolean')throw Error('途中流局設定が不正です');if(command.nekkyou!==undefined&&typeof command.nekkyou!=='boolean')throw Error('ルール設定が不正です');if(command.cpuLevel!==undefined)E.CpuProfiles.validate(command.cpuLevel);if(command.fourRiichiAbort!==undefined)r.fourRiichiAbort=command.fourRiichiAbort;if(command.fourWindsAbort!==undefined)r.fourWindsAbort=command.fourWindsAbort;r.cpuLevel=command.cpuLevel||r.cpuLevel||'standard';r.selection=command.selection.slice();r.nekkyou=command.nekkyou===true;for(const p of r.members)p.ready=false;this.lobby(r);return;}
   if(type==='ready'){if(r.phase!=='lobby')throw Error('すでに開始しています');m.ready=command.ready===true;this.lobby(r);return;}
   if(type==='next'){
    if(command.matchId!==r.matchId||!r.matchId||!['finished','lobby'].includes(r.phase))throw Error('次の対局の準備は終局後に行ってください');
@@ -4634,7 +4635,7 @@ class Rooms {
    }else player=new E.Player((options,reply,msg,p)=>reply(E.cpu(p,options)));
    player.controller=m?'human':'cpu';players.push(player);
   }
-  r.game=new E.Game(players,paipu=>{r.phase='finished';r.results=E.settle(paipu);const replay=r.game.exportReplay(r.matchId);for(const m of r.members)this.emit(m,'result',{matchId:r.matchId,rows:r.results,cold:!!paipu.cold,replay});this.lobby(r);},{cpuLevel:r.cpuLevel||'standard',gemSelection:r.selection,nekkyou:r.nekkyou});r.game._model.player=[0,1,2,3].map(id=>r.members[id]?.name||'CPU '+(id+1));r.game.speed=this.speed;r.game.kaiju();
+  r.game=new E.Game(players,paipu=>{r.phase='finished';r.results=E.settle(paipu);const replay=r.game.exportReplay(r.matchId);for(const m of r.members)this.emit(m,'result',{matchId:r.matchId,rows:r.results,cold:!!paipu.cold,replay});this.lobby(r);},{cpuLevel:r.cpuLevel||'standard',gemSelection:r.selection,nekkyou:r.nekkyou,'四家立直流局あり':r.fourRiichiAbort===true,'四風連打流局あり':r.fourWindsAbort!==false});r.game._model.player=[0,1,2,3].map(id=>r.members[id]?.name||'CPU '+(id+1));r.game.speed=this.speed;r.game.kaiju();
  }
  events(r,m,after){if(!Number.isSafeInteger(after)||after<0||after>m.events.length)throw Error('受信位置が不正です');return {head:m.events.length,events:m.events.slice(after,after+200),pending:m.pending?{id:m.pending.id,type:m.pending.type,data:m.pending.data,deadline:m.pending.deadline}:null};}
  expire(){for(const [code,r]of this.rooms)if(Date.now()-r.touched>this.idleMs){r.game?.stop();for(const m of r.members){clearTimeout(m.pending?.timer);for(const wake of m.waiters)wake();}this.rooms.delete(code);}}
