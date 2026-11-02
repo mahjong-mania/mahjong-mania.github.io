@@ -1,7 +1,7 @@
 'use strict';
 const {chromium}=require('playwright'),fs=require('fs'),http=require('http'),path=require('path'),assert=require('assert/strict');
 (async()=>{
- const root=path.resolve(__dirname,'../public/offline');
+ const root=path.resolve(__dirname,'..',process.env.SMOKE_ROOT||(fs.existsSync(path.resolve(__dirname,'../public/offline/index.html'))?'public/offline':'.'));
  const server=http.createServer((req,res)=>{const p=path.join(root,decodeURI(req.url.split('?')[0]));fs.readFile(p,(e,b)=>{if(e){res.writeHead(404);res.end();return;}res.setHeader('Content-Type',p.endsWith('.js')?'text/javascript':p.endsWith('.css')?'text/css':p.endsWith('.svg')?'image/svg+xml':'text/html');res.end(b);});});await new Promise(r=>server.listen(0,'127.0.0.1',r));
  const browser=await chromium.launch({args:['--no-sandbox']});const page=await browser.newPage({viewport:{width:390,height:844}});const errors=[];page.on('pageerror',e=>errors.push(e.message));
  try{
@@ -32,5 +32,5 @@ const {chromium}=require('playwright'),fs=require('fs'),http=require('http'),pat
   await page.evaluate(()=>document.querySelector('#actions').replaceChildren());await page.waitForFunction(()=>!document.getElementById('portrait-tsumogiri').disabled);
   await page.locator('#portrait-tsumogiri').click();await page.evaluate(()=>document.getElementById('portrait-tsumogiri').click());assert.equal(await page.evaluate(()=>window.calls),1);
   assert.deepEqual(errors,[]);console.log('PASS: four-player/sanma portrait draw discard; legal existing action; landscape hidden; modal/riichi/duplicate guards.');
- }finally{await browser.close();server.close();}
+ }catch(error){console.error('Portrait diagnostics',await page.evaluate(()=>({url:location.href,button:document.getElementById('portrait-tsumogiri')?.outerHTML,viewport:[innerWidth,innerHeight],dialogs:[...document.querySelectorAll('dialog[open]')].map(d=>d.id)})),errors);throw error;}finally{await browser.close();server.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});
