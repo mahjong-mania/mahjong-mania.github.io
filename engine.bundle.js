@@ -4532,7 +4532,7 @@ module.exports=function(E){
  }
  function tableTulip({tiles,flowers=[],indicators=[],wall=[]}){const owned=tiles.concat(flowers,indicators.filter(t=>t[0]==='f')),reveals=[];let chips=0;for(const p of wall){let hits=0;if(p[0]==='f')hits=owned.filter(t=>t[0]==='f').length*3;else{const r=alice({tiles:owned.filter(t=>t[0]!=='f'),wall:[p],mode:'tulip',winter:1});hits=r.chips*(p[0]==='m'?2:1);}reveals.push({tiles:[p],hits});chips+=hits;if(!hits)break;}return {chips,reveals,mode:'チューリップ（身内）',multiplier:1};}
  function oneDie(rng=Math.random){const n=1+Math.floor(rng()*6);return {chips:n,rolls:[[n]]};}
- function twoDice(rng=Math.random){const rolls=[[1+Math.floor(rng()*6),1+Math.floor(rng()*6)]];return {chips:rolls[0][0]+rolls[0][1],rolls};}
+ function twoDice(rng=Math.random){return dice(rng);}
  function dice(rng=Math.random){const rolls=[];let chips=0;for(let i=0;i<100;i++){const a=1+Math.floor(rng()*6),b=1+Math.floor(rng()*6),n=a===1&&b===1?20:a+b;rolls.push([a,b]);chips+=n;if(a!==b)break;}return {chips,rolls};}
  return {H,tableTulip,FLOWERS,POCCHI,POCCHI_NAMES,DEFAULT_FLOWERS,VARIANTS,options,rule,makeWall,normal,counts,shanten,waits,sevenPairs,springDelta,effects,payments,score,alice,dice,oneDie,twoDice,dora};
 };
