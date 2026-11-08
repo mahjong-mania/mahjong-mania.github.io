@@ -10,7 +10,7 @@
   if(path==='/api/tables'){if(peer||hostSession)throw Error('親機はすでに作成済みです');rooms=new JewelTables.TableRooms();hostSession=rooms.create(body.name,body.game);return hostSession;}
   const url=new URL(path,location.href),m=url.pathname.match(/^\/api\/tables\/([A-F0-9]{8})\/(join|events|command)$/);if(!m)throw Error('不明な操作です');
   const [,code,action]=m;if(code!==hostSession?.room)throw Error('部屋が一致しません');
-  if(action==='join'){if(!peer||peer.session)throw Error('参加済みです');peer.session=rooms.join(code,body.name);return peer.session;}
+  if(action==='join'){if(!peer||peer.session)throw Error('参加済みです');peer.session=rooms.join(code,body.name,body.game);return peer.session;}
   const bound=peer?peer.session:hostSession;if(!bound||session?.token!==bound.token||session.room!==bound.room)throw Error('参加情報が無効です');
   const {r,m:member}=rooms.auth(code,bound.token);
   if(action==='command'){rooms.command(r,member,body);return {ok:true};}
