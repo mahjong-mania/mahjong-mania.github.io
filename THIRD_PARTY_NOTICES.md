@@ -54,3 +54,10 @@ License: Creative Commons Attribution 3.0 — https://creativecommons.org/licens
 #                                                                   #
 # See http://creativecommons.org/ for details.                      #
 # ----------------------------------------------------------------- #
+
+## チンチロの3D描画・物理演算
+
+Three.js 0.160.1（MIT）と cannon-es 0.20.0（MIT）をアプリ内に同梱しています。実行時のCDNアクセスはありません。
+
+- Three.js: https://github.com/mrdoob/three.js / vendor/THREE-LICENSE.txt
+- cannon-es: https://github.com/pmndrs/cannon-es / vendor/CANNON-LICENSE.txt

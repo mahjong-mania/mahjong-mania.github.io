@@ -33,3 +33,5 @@ body.jewel-home::before{content:"";position:fixed;inset:0;pointer-events:none;op
 .stile.flower{--flower-color:#d94b91;display:inline-flex;align-items:center;justify-content:center;padding:0;border:2px solid var(--flower-color);border-bottom:3px solid var(--flower-color);background:#fff9ed;color:var(--flower-color);font-family:system-ui,-apple-system,sans-serif;font-weight:800;line-height:1}
 .stile.flower-spring{--flower-color:#d94b91}.stile.flower-summer{--flower-color:#198754}.stile.flower-autumn{--flower-color:#c83e3e}.stile.flower-winter{--flower-color:#337dcc}
 .stile.flower .flower-char{display:block;font-size:calc(var(--size)*.78);line-height:1;letter-spacing:0;white-space:nowrap;pointer-events:none}
+
+.dice-mode{border-color:#8b8160;background:linear-gradient(130deg,#182d42,#25273f)}.dice-mode .mode-buttons>a:first-child{background:linear-gradient(110deg,#e8cb8e,#f1dfac);color:#263044}.dice-mode-caption{position:absolute;left:24px;top:87px;font-size:16px;color:#d6d1b9}.dice-mode .mode-art{object-fit:contain;opacity:.96}
