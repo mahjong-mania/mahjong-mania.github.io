@@ -2,7 +2,7 @@
 (()=>{if(!('serviceWorker'in navigator)||!location.protocol.startsWith('http'))return;
  const home=document.querySelector('.web-home');let state;if(home){state=document.createElement('p');state.id='offline-storage-state';state.setAttribute('role','status');state.textContent='最新版とオフライン保存を確認中…';home.append(state);}
  const show=text=>{if(state)state.textContent=text;};
- const inMatch=()=>typeof finished!=='undefined'&&!finished||!!globalThis.sanmaGame&&!globalThis.sanmaGame.finished||!!globalThis.ChinchiroApp?.game&&globalThis.ChinchiroApp.game.state.phase!=='finished';
+ const inMatch=()=>!!globalThis.TableOnline?.snapshot?.state&&globalThis.TableOnline.snapshot.phase==='playing'||typeof finished!=='undefined'&&!finished||!!globalThis.sanmaGame&&!globalThis.sanmaGame.finished||!!globalThis.ChinchiroApp?.game&&globalThis.ChinchiroApp.game.state.phase!=='finished';
  let reloaded=false;
  navigator.serviceWorker.addEventListener('controllerchange',()=>{if(reloaded||inMatch())return;const controller=navigator.serviceWorker.controller;if(!controller)return;const channel=new MessageChannel();channel.port1.onmessage=event=>{channel.port1.close();const shown=document.querySelector('meta[name="houseki-build"]')?.content;if(shown&&event.data.version!==shown&&!inMatch()&&!reloaded){reloaded=true;location.reload();}};controller.postMessage({type:'BUILD_VERSION'},[channel.port2]);});
  navigator.serviceWorker.register('sw.js',{scope:'./',updateViaCache:'none'}).then(async registration=>{

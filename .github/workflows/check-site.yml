@@ -53,3 +53,11 @@ jobs:
           server_pid=$!
           trap 'kill "$server_pid"' EXIT
           node scripts/smoke-chinchiro.js
+
+      - name: Nearby Sanma and Chinchiro multiplayer
+        run: |
+          python3 -m http.server 8879 --bind 127.0.0.1 > /tmp/tables-http.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid"' EXIT
+          CONNECTION=near GAME=sanma node scripts/smoke-table-online.js
+          CONNECTION=near GAME=chinchiro node scripts/smoke-table-online.js
