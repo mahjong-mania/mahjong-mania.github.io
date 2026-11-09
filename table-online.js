@@ -43,5 +43,6 @@ $('server-url').value=globalThis.HOUSEKI_TABLE_SERVER||'';$('server-url').oninpu
 
 const auth=el('section',undefined,'table-card');auth.id='table-auth';auth.hidden=true;const password=el('input');password.type='password';password.autocomplete='current-password';password.placeholder='サーバーのアクセス用パスワード';const login=el('button','認証する');login.onclick=async()=>{try{const res=await fetch('/access',{method:'POST',body:new URLSearchParams({password:password.value})});password.value='';if(!res.ok)throw Error('パスワードを確認してください');auth.hidden=true;status('認証しました。ルームを作成・参加してください。');}catch(e){status(e.message);}};auth.append(password,login);$('join-form').before(auth);
 globalThis.tableKind=kind;if(near){$('nearby-connection').hidden=false;await import('./table-peer.js');}else{try{const h=await(await fetch('/health',{cache:'no-store'})).json();if(!h.tables)throw Error();}catch{$('remote-server').hidden=false;$('join-form').hidden=true;status('遠距離対戦サーバーの接続先を入力してください。');}try{session=JSON.parse(sessionStorage.getItem(key)||'null');if(session&&(!RoomInvite.pending||session.room===RoomInvite.pending.room))poll();else if(RoomInvite.pending)session=null;}catch{status('参加情報を読み込めません。');}}
+$('create-room').disabled=false;$('join-room').disabled=near;
 globalThis.TableOnline={get snapshot(){return snapshot;},get session(){return session;},get view(){return view;},command,join};
 
