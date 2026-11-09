@@ -61,3 +61,10 @@ jobs:
           trap 'kill "$server_pid"' EXIT
           CONNECTION=near GAME=sanma node scripts/smoke-table-online.js
           CONNECTION=near GAME=chinchiro node scripts/smoke-table-online.js
+
+      - name: Chinchiro CPU seats and automatic turn flow
+        run: |
+          python3 -m http.server 8878 --bind 127.0.0.1 > /tmp/chinchiro-cpu-http.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid"' EXIT
+          node scripts/smoke-chinchiro-cpu.js
