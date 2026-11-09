@@ -40,3 +40,9 @@ body.jewel-home::before{content:"";position:fixed;inset:0;pointer-events:none;op
 
 /* Explicit line heights keep score rows inside the center across Japanese system fonts. */
 .center #scores{min-height:0}.center .score{line-height:1.2}.center .score b{line-height:1.2}
+
+/* Keep Chinchiro description in normal flow, above the action buttons. */
+.jewel-home .mode-section.dice-mode{display:flex;flex-direction:column}
+.dice-mode .dice-mode-caption{position:static;margin:8px 0 0;max-width:75%;font-size:13px;line-height:1.5;color:#d6d1b9}
+.dice-mode .mode-buttons{margin-top:auto;padding-top:24px;position:relative;z-index:1}
+.dice-mode .dice-online-link{flex:none;margin-top:12px;padding:4px 0;font-size:14px;line-height:1.5}
