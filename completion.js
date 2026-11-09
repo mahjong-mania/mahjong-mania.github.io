@@ -12,9 +12,9 @@ globalThis.MatchComplete={
   for(const row of rows.slice().sort((a,b)=>a.rank-b.rank)){const tr=el('tr');tr.dataset.player=row.id;if(row.id===selfId)tr.className='complete-self';const name=el('th',row.rank+'着 '+names[row.id]);name.scope='row';tr.append(name);for(const text of [row.points.toLocaleString()+'点',signed(row.rankChips),signed(row.bonusChips),signed(row.rankChips+row.bonusChips)+'枚'])tr.append(el('td',text));body.append(tr);}table.append(body);dialog.append(table);
   dialog.append(el('p','順位・祝儀・合計の単位は枚です。'));globalThis.ReplayExport?.mount(dialog,replay,{saved:replaySaved});
   const note=el('p',saved?'結果を端末内に保存しました。':'成績の保存に失敗しました。表示中の結果を控えてください。');note.className='complete-note';dialog.append(note);
-  if(online)dialog.append(el('p','次の対局は同じ部屋の待機画面へ戻り、全員の準備完了後にホストが開始します。'));
+  if(online)dialog.append(el('p','次の対局は同じ部屋の待機画面へ戻り、全員の準備完了後にオーナーが開始します。'));
   if(online&&isHost){
-   const section=el('section');section.id='room-result-export';section.append(el('h2','結果を書き出す（ホスト）'),el('p','名前は書き出し用です。チップ枚数は順位チップ＋祝儀の合計で、対局結果自体は変更しません。'));
+   const section=el('section');section.id='room-result-export';section.append(el('h2','結果を書き出す（オーナー）'),el('p','名前は書き出し用です。チップ枚数は順位チップ＋祝儀の合計で、対局結果自体は変更しません。'));
    const label=el('label','1枚あたりの倍率 '),factor=el('input');factor.id='result-export-factor';factor.type='number';factor.step='any';factor.value='1';label.append(factor);section.append(label);
    const wrap=el('div');wrap.style.overflowX='auto';const ledger=el('table');ledger.className='complete-ledger';const header=el('tr');for(const title of ['着順','プレイヤー名','チップ枚数','換算値'])header.append(el('th',title));const thead=el('thead');thead.append(header);ledger.append(thead);const body=el('tbody'),items=[];
    for(const row of rows.slice().sort((a,b)=>a.rank-b.rank)){const tr=el('tr'),input=el('input');input.type='text';input.maxLength=40;input.value=names[row.id]||'プレイヤー '+(row.id+1);input.setAttribute('aria-label',row.rank+'着のプレイヤー名');const cell=el('td');cell.append(input);const chips=row.rankChips+row.bonusChips,value=el('td');tr.append(el('td',row.rank+'着'),cell,el('td',signed(chips)+'枚'),value);body.append(tr);items.push({row,input,chips,value});}ledger.append(body);wrap.append(ledger);section.append(wrap);

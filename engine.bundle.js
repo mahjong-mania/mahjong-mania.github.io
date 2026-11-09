@@ -4604,21 +4604,22 @@ class Rooms {
  constructor({maxRooms=8,turnMs=20000,callMs=10000,confirmMs=15000,speed=0,idleMs=2*3600000}={}){Object.assign(this,{maxRooms,turnMs,callMs,confirmMs,speed,idleMs});this.rooms=new Map();}
  create(name){this.expire();if(this.rooms.size>=this.maxRooms)throw Error('現在満室です。しばらく待ってください');let code;do{code=crypto.randomBytes(4).toString('hex').toUpperCase();}while(this.rooms.has(code));const r={code,host:0,members:[],selection:E.J.DEFAULT.slice(),nekkyou:false,fourRiichiAbort:false,fourWindsAbort:true,cpuLevel:'standard',game:null,phase:'lobby',touched:Date.now(),id:crypto.randomUUID()};this.rooms.set(code,r);return this.join(code,name);}
  room(code){const r=this.rooms.get(String(code).toUpperCase());if(!r)throw Error('ルームが見つかりません。サーバー再起動の場合は作り直してください');return r;}
- join(code,name){const r=this.room(code);if(r.phase!=='lobby')throw Error('対局開始後は新規参加できません');if(r.members.length>=4)throw Error('満席です');name=String(name||'').trim();if(!name||name.length>16)throw Error('名前は1〜16文字にしてください');const m={id:r.members.length,name,token:crypto.randomBytes(32).toString('hex'),events:[],waiters:new Set(),pending:null,ready:false,lastSeen:Date.now(),joined:Date.now(),seen:new Map()};r.members.push(m);r.touched=Date.now();this.lobby(r);return {room:r.code,token:m.token,self:m.id};}
+ invitation(r,m,options){return require("online/invitations.js").issue(r,m,options);}
+ join(code,name,kind,invite){const r=this.room(code);require("online/invitations.js").validate(r,invite);if(r.phase!=='lobby')throw Error('対局開始後は新規参加できません');if(r.members.length>=4)throw Error('満席です');name=String(name||'').trim();if(!name||name.length>16)throw Error('名前は1〜16文字にしてください');const m={id:r.members.length,name,token:crypto.randomBytes(32).toString('hex'),events:[],waiters:new Set(),pending:null,ready:false,lastSeen:Date.now(),joined:Date.now(),seen:new Map()};r.members.push(m);r.touched=Date.now();this.lobby(r);return {room:r.code,token:m.token,self:m.id};}
  auth(code,token){const r=this.room(code),m=r.members.find(m=>m.token===token);if(!m)throw Error('参加情報が無効です');m.lastSeen=Date.now();r.touched=Date.now();return {r,m};}
  emit(m,type,data){if(m.events.length>=20000)throw Error('対局ログ上限です');m.events.push({seq:m.events.length+1,type,data:copy(data)});for(const wake of m.waiters)wake();m.waiters.clear();}
  lobby(r){const data={room:r.code,host:r.host,phase:r.phase,selection:r.selection,nekkyou:r.nekkyou,fourRiichiAbort:r.fourRiichiAbort===true,fourWindsAbort:r.fourWindsAbort!==false,cpuLevel:r.cpuLevel,members:r.members.map(m=>({id:m.id,name:m.name,ready:m.ready,connected:Date.now()-m.lastSeen<45000})),cpu:4-r.members.length};for(const m of r.members)this.emit(m,'lobby',data);}
  request(r,m,type,data,callback,ms,fallback){const id=crypto.randomUUID(),deadline=Date.now()+ms;const finish=reply=>{if(m.pending?.id!==id)return;clearTimeout(m.pending.timer);m.pending=null;this.emit(m,'resolved',{id});callback(reply);};m.pending={id,type,data,deadline,finish,timer:setTimeout(()=>finish(fallback()),ms)};m.pending.timer.unref?.();this.emit(m,'prompt',{id,type,data,deadline});}
  command(r,m,command){
   const {type}=command;
-  if(type==='configure'){if(m.id!==r.host||r.phase!=='lobby')throw Error('設定変更は開始前のホストのみです');E.J.configure(command.selection);for(const k of ['fourRiichiAbort','fourWindsAbort'])if(command[k]!==undefined&&typeof command[k]!=='boolean')throw Error('途中流局設定が不正です');if(command.nekkyou!==undefined&&typeof command.nekkyou!=='boolean')throw Error('ルール設定が不正です');if(command.cpuLevel!==undefined)E.CpuProfiles.validate(command.cpuLevel);if(command.fourRiichiAbort!==undefined)r.fourRiichiAbort=command.fourRiichiAbort;if(command.fourWindsAbort!==undefined)r.fourWindsAbort=command.fourWindsAbort;r.cpuLevel=command.cpuLevel||r.cpuLevel||'standard';r.selection=command.selection.slice();r.nekkyou=command.nekkyou===true;for(const p of r.members)p.ready=false;this.lobby(r);return;}
+  if(type==='configure'){if(m.id!==r.host||r.phase!=='lobby')throw Error('設定変更は開始前のオーナーのみです');E.J.configure(command.selection);for(const k of ['fourRiichiAbort','fourWindsAbort'])if(command[k]!==undefined&&typeof command[k]!=='boolean')throw Error('途中流局設定が不正です');if(command.nekkyou!==undefined&&typeof command.nekkyou!=='boolean')throw Error('ルール設定が不正です');if(command.cpuLevel!==undefined)E.CpuProfiles.validate(command.cpuLevel);if(command.fourRiichiAbort!==undefined)r.fourRiichiAbort=command.fourRiichiAbort;if(command.fourWindsAbort!==undefined)r.fourWindsAbort=command.fourWindsAbort;r.cpuLevel=command.cpuLevel||r.cpuLevel||'standard';r.selection=command.selection.slice();r.nekkyou=command.nekkyou===true;for(const p of r.members)p.ready=false;this.lobby(r);return;}
   if(type==='ready'){if(r.phase!=='lobby')throw Error('すでに開始しています');m.ready=command.ready===true;this.lobby(r);return;}
   if(type==='next'){
    if(command.matchId!==r.matchId||!r.matchId||!['finished','lobby'].includes(r.phase))throw Error('次の対局の準備は終局後に行ってください');
    if(r.phase==='finished'){r.phase='lobby';for(const member of r.members)member.ready=false;}
    m.ready=true;this.lobby(r);return;
   }
-  if(type==='start'){if(m.id!==r.host)throw Error('開始できるのはホストです');if(r.phase!=='lobby')throw Error('すでに開始しています');if(r.members.length<2)throw Error('人間2人以上で開始できます');if(!r.members.every(p=>p.ready&&Date.now()-p.lastSeen<45000))throw Error('全員の接続と準備完了が必要です');return this.start(r);}
+  if(type==='start'){if(m.id!==r.host)throw Error('開始できるのはオーナーです');if(r.phase!=='lobby')throw Error('すでに開始しています');if(r.members.length<2)throw Error('人間2人以上で開始できます');if(!r.members.every(p=>p.ready&&Date.now()-p.lastSeen<45000))throw Error('全員の接続と準備完了が必要です');return this.start(r);}
   if(type==='reply'){
    if(typeof command.id!=='string')throw Error('操作IDがありません');if(m.seen.has(command.id))return;
    const p=m.pending;if(!p||p.id!==command.id)throw Error('手番が更新されました');
@@ -4650,6 +4651,22 @@ module.exports={Rooms};
 module.exports={randomUUID:()=>globalThis.crypto.randomUUID(),randomBytes:n=>{const bytes=globalThis.crypto.getRandomValues(new Uint8Array(n));return {toString:format=>{if(format!=='hex')throw Error('Unsupported encoding');return Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('');}};}};
 
 },
+"online/invitations.js":function(module,exports,require){
+'use strict';
+const crypto=require("online/crypto.js");
+function issue(r,m,{rotate=false}={}){
+ if(m.id!==r.host)throw Error('招待URLを発行できるのはオーナーです');
+ if(r.phase!=='lobby')throw Error('招待URLは開始前に発行してください');
+ if(rotate||!r.invitation||r.invitation.expiresAt<=Date.now())r.invitation={token:crypto.randomBytes(32).toString('hex'),expiresAt:Date.now()+2*60*60*1000};
+ return {...r.invitation,room:r.code};
+}
+function validate(r,token){
+ if(token===undefined)return; // Manual room-code entry remains available.
+ if(typeof token!=='string'||!/^[a-f0-9]{64}$/.test(token)||!r.invitation||r.invitation.expiresAt<=Date.now()||token!==r.invitation.token)throw Error('招待URLが無効か期限切れです。オーナーに再発行を依頼してください');
+}
+module.exports={issue,validate};
+
+},
 "online/table-rooms.js":function(module,exports,require){
 'use strict';
 const crypto=require("online/crypto.js"),E=require("offline/engine.js"),C=require("public/offline/chinchiro-core.js");
@@ -4660,14 +4677,15 @@ class TableRooms{
  create(name,game='sanma'){this.expire();if(!['sanma','chinchiro'].includes(game))throw Error('ゲームの種類が不正です');if(this.rooms.size>=this.maxRooms)throw Error('満室です');let code;do{code=crypto.randomBytes(4).toString('hex').toUpperCase();}while(this.rooms.has(code));const r={code,kind:game,host:0,members:[],phase:'lobby',revision:0,touched:Date.now(),settings:game==='sanma'?this.sanmaConfig({}):{mode:'normal',tie:'parent',settlement:'classic',initial:1000,stake:10,laps:1},acks:new Set(),timer:null};this.rooms.set(code,r);return this.join(code,name);}
  sanmaConfig(b){const keys=['house','flowerRules','pocchiTypes','pocchiIppatsuDice','flowerCopies','startSeat','cpuLevel'],c=Object.fromEntries(keys.filter(k=>b[k]!==undefined).map(k=>[k,b[k]]));return E.Sanma.options(c);}
  room(code){const r=this.rooms.get(String(code).toUpperCase());if(!r)throw Error('ルームが見つかりません');return r;}
- join(code,name,kind){const r=this.room(code);if(kind!==undefined&&kind!==r.kind)throw Error('ゲームの種類が違います');if(r.phase!=='lobby')throw Error('開始後は新しく参加できません');if(r.members.length>=(r.kind==='sanma'?3:20))throw Error('満席です');name=String(name||'').trim().normalize('NFC');if(!name||name.length>16||r.members.some(m=>m.name===name))throw Error('名前は重複しない1〜16文字にしてください');const m={id:r.members.length,name,token:crypto.randomBytes(32).toString('hex'),ready:false,waiters:new Set(),seen:new Set(),lastSeen:Date.now()};r.members.push(m);this.touch(r);return {room:r.code,self:m.id,token:m.token,game:r.kind};}
+ invitation(r,m,options){return require("online/invitations.js").issue(r,m,options);}
+ join(code,name,kind,invite){const r=this.room(code);require("online/invitations.js").validate(r,invite);if(kind!==undefined&&kind!==r.kind)throw Error('ゲームの種類が違います');if(r.phase!=='lobby')throw Error('開始後は新しく参加できません');if(r.members.length>=(r.kind==='sanma'?3:20))throw Error('満席です');name=String(name||'').trim().normalize('NFC');if(!name||name.length>16||r.members.some(m=>m.name===name))throw Error('名前は重複しない1〜16文字にしてください');const m={id:r.members.length,name,token:crypto.randomBytes(32).toString('hex'),ready:false,waiters:new Set(),seen:new Set(),lastSeen:Date.now()};r.members.push(m);this.touch(r);return {room:r.code,self:m.id,token:m.token,game:r.kind};}
  auth(code,token){const r=this.room(code),m=r.members.find(m=>m.token===token);if(!m)throw Error('参加情報が無効です');r.touched=m.lastSeen=Date.now();return {r,m};}
  touch(r){r.revision++;r.touched=Date.now();for(const m of r.members){for(const wake of m.waiters)wake();m.waiters.clear();}}
  command(r,m,c){if(!c||typeof c!=='object'||typeof c.type!=='string')throw Error('操作が不正です');if(typeof c.id!=='string'||c.id.length>80)throw Error('操作IDがありません');if(m.seen.has(c.id))return;const host=m.id===r.host;
   if(c.type==='ready'){if(r.phase!=='lobby')throw Error('開始済みです');m.ready=c.ready===true;}
-  else if(c.type==='configure'){if(!host||r.phase!=='lobby')throw Error('設定できるのは開始前のホストです');r.settings=r.kind==='sanma'?this.sanmaConfig(c.settings||{}):Object.fromEntries(Object.entries(C.config({...c.settings,names:['親','子']})).filter(([k])=>k!=='names'&&k!=='participants'));for(const x of r.members)x.ready=false;}
-  else if(c.type==='start'){if(!host||r.phase!=='lobby'||r.members.length<2||!r.members.every(x=>x.ready&&Date.now()-x.lastSeen<45000))throw Error('ホストと全員の準備完了が必要です');r.matchId=crypto.randomUUID();r.phase='playing';r.acks.clear();r.lastRoll=null;r.game=r.kind==='sanma'?new E.Sanma.Game({...r.settings,names:[0,1,2].map(i=>r.members[i]?.name||'CPU'),participantTypes:[0,1,2].map(i=>r.members[i]?'human':'cpu')}):new C.Game({...r.settings,names:r.members.map(x=>x.name)});}
-  else if(c.type==='again'){if(!host||r.phase!=='finished')throw Error('ホストが終局後に操作してください');r.game=null;r.phase='lobby';r.lastRoll=null;for(const x of r.members)x.ready=false;}
+  else if(c.type==='configure'){if(!host||r.phase!=='lobby')throw Error('設定できるのは開始前のオーナーです');r.settings=r.kind==='sanma'?this.sanmaConfig(c.settings||{}):Object.fromEntries(Object.entries(C.config({...c.settings,names:['親','子']})).filter(([k])=>k!=='names'&&k!=='participants'));for(const x of r.members)x.ready=false;}
+  else if(c.type==='start'){if(!host||r.phase!=='lobby'||r.members.length<2||!r.members.every(x=>x.ready&&Date.now()-x.lastSeen<45000))throw Error('オーナーと全員の準備完了が必要です');r.matchId=crypto.randomUUID();r.phase='playing';r.acks.clear();r.lastRoll=null;r.game=r.kind==='sanma'?new E.Sanma.Game({...r.settings,names:[0,1,2].map(i=>r.members[i]?.name||'CPU'),participantTypes:[0,1,2].map(i=>r.members[i]?'human':'cpu')}):new C.Game({...r.settings,names:r.members.map(x=>x.name)});}
+  else if(c.type==='again'){if(!host||r.phase!=='finished')throw Error('オーナーが終局後に操作してください');r.game=null;r.phase='lobby';r.lastRoll=null;for(const x of r.members)x.ready=false;}
   else{if(r.phase!=='playing'||c.revision!==r.revision)throw Error('手番が更新されました');const g=r.game;if(r.kind==='sanma'){
     if(c.type==='next'&&g.phase==='roundEnd'){r.acks.add(m.id);if(r.members.every(x=>r.acks.has(x.id))){g.act({next:true});r.acks.clear();}}
     else if(c.type==='reply'&&g.actor===m.id&&!['roundEnd','finished'].includes(g.phase)){g.act(c.reply||{});}else throw Error('現在は操作できません');
