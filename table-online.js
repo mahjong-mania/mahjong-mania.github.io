@@ -1,4 +1,5 @@
 'use strict';
+await globalThis.MultiplayerGate?.ready;
 const $=id=>document.getElementById(id),E=JewelOffline,S=E.Sanma,params=new URLSearchParams(location.search),kind=params.get('game')==='chinchiro'?'chinchiro':'sanma',near=params.get('connection')==='near';
 let session=null,snapshot=null,cursor=0,running=false,submitting=false,view=null,animating=false,lastRoll=null,lastSaved=null;
 const key='houseki-table-'+kind+'-session',status=t=>$('connection-state').textContent=t;
