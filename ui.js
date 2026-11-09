@@ -60,6 +60,7 @@ function showWin(h,done,p,accepted=false){
  }else $('win-breakdown').textContent='この和了の内訳データはありません';
  if(h.tobi?.length){const note=document.createElement('p');note.textContent='別途トビ賞：'+h.tobi.map(id=>names[id]+'から10枚').join('、')+'（倍化対象外）';$('win-breakdown').append(note);}
  $('win-payments').replaceChildren();for(let id=0;id<4;id++){const row=document.createElement('tr');const seat=p.model.player_id.indexOf(id);for(const text of [names[id],signed(h.fenpei?.[seat]||0)+'点',signed(h.chipDelta?.[id]||0)+'枚']){const cell=document.createElement('td');cell.textContent=text;row.append(cell);}$('win-payments').append(row);}
+ const previousShare=$('win-confirm').querySelector('.social-result-share');if(previousShare)previousShare.remove();if(p.model.player_id[h.l]===0)HousekiShare.mount($('win-breakdown'),()=>HousekiShare.mahjong({mode:'four',method:h.baojia===null?'ツモ':'ロン',points:h.defen,chips:h.jewelTotal??(h.jewelChips!=null?h.jewelChips*(h.baojia==null?3:1):null),hand:h.shoupai,yaku:h.hupai,notation:Object.fromEntries(J.rawTiles(h.shoupai).map(t=>[t,{name:label(t)}]))}));
  $('win-confirm').showModal();
 }
 $('win-next').onclick=()=>{const callback=winContinuation;if(!callback)return;winContinuation=null;$('win-confirm').close();callback();};
