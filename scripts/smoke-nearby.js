@@ -8,7 +8,7 @@ const {chromium}=require('playwright'),http=require('node:http'),fs=require('nod
  assert.equal(await host.locator('#room-members>p').count(),5);assert.match(await host.locator('#room-members').textContent(),/空席CPU：0/);
  // Each peer has its own seat, and a guest cannot configure or start the game.
  for(let i=0;i<4;i++)assert.equal(await pages[i].evaluate(()=>onlineSession.self),i);
- const denied=await pages[1].evaluate(async()=>{try{await api(roomPath('command'),{type:'configure',selection:J.DEFAULT});return false;}catch(e){return /ホスト/.test(e.message);}});assert.ok(denied);
+ const denied=await pages[1].evaluate(async()=>{try{await api(roomPath('command'),{type:'configure',selection:J.DEFAULT});return false;}catch(e){return /オーナー/.test(e.message);}});assert.ok(denied);
  const hostToken=await host.evaluate(()=>onlineSession.token);assert.equal(await pages[1].evaluate(async token=>{try{await NearbyTransport.request(roomPath('command'),{type:'ready',ready:true},{...onlineSession,token});return false;}catch(e){return /参加情報/.test(e.message);}},hostToken),true);
  // Oversized messages use bounded ordered frames, including final game records.
  assert.equal(await pages[1].evaluate(async()=>{try{await api(roomPath('command'),{type:'unknown',padding:'あ'.repeat(100000)});return false;}catch(e){return /不明な操作/.test(e.message);}}),true);
