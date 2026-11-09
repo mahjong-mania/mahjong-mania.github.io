@@ -61,3 +61,8 @@ Three.js 0.160.1（MIT）と cannon-es 0.20.0（MIT）をアプリ内に同梱�
 
 - Three.js: https://github.com/mrdoob/three.js / vendor/THREE-LICENSE.txt
 - cannon-es: https://github.com/pmndrs/cannon-es / vendor/CANNON-LICENSE.txt
+
+## 共有画像のキャプチャ
+
+html2canvas 1.4.1（MIT）を同梱しています。実行時のCDNアクセスはありません。
+https://github.com/niklasvh/html2canvas / vendor/HTML2CANVAS-LICENSE.txt

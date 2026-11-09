@@ -36,3 +36,5 @@ document.addEventListener('visibilitychange',()=>{stopCpu();press=null;if(!docum
 
 function lapSummary(){const n=Number($('cc-count').value),laps=Number($('cc-laps').value);$('cc-laps-summary').textContent=Number.isInteger(n)&&Number.isInteger(laps)&&laps>=1&&laps<=20?n+'人 × '+laps+'周 = 全'+n*laps+'親番（各人が'+laps+'回ずつ親）':'';}
 $('cc-count').addEventListener('input',lapSummary);$('cc-laps').addEventListener('input',lapSummary);lapSummary();
+
+addEventListener('houseki-share-close',()=>scheduleCpu());
