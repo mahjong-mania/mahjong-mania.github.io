@@ -37,3 +37,6 @@ body.jewel-home::before{content:"";position:fixed;inset:0;pointer-events:none;op
 .dice-mode{border-color:#8b8160;background:linear-gradient(130deg,#182d42,#25273f)}.dice-mode .mode-buttons>a:first-child{background:linear-gradient(110deg,#e8cb8e,#f1dfac);color:#263044}.dice-mode-caption{position:absolute;left:24px;top:87px;font-size:16px;color:#d6d1b9}.dice-mode .mode-art{object-fit:contain;opacity:.96}
 
 .dice-online-link{position:relative;z-index:2;display:block;text-align:center;margin-top:12px;color:#c2dfe8}.dice-mode{padding-bottom:20px}
+
+/* Explicit line heights keep score rows inside the center across Japanese system fonts. */
+.center #scores{min-height:0}.center .score{line-height:1.2}.center .score b{line-height:1.2}
