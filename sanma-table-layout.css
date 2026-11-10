@@ -2,3 +2,14 @@
 @media(orientation:landscape) and (max-height:600px){body.sanma-classic #sanma-app{display:grid;grid-template-columns:minmax(0,1fr) minmax(240px,.95fr);grid-template-rows:35px 1fr;gap:4px;height:100dvh;max-width:1100px;align-items:center}body.sanma-classic #sanma-table{grid-column:1;grid-row:1/3;width:min(100%,calc(100dvh - 10px));justify-self:center;align-self:center}body.sanma-classic .sanma-board-header{grid-column:2;grid-row:1}body.sanma-classic #sanma-hand-panel{grid-column:2;grid-row:2;align-self:start;width:100%;padding:5px}body.sanma-classic #sanma-hand .stile{height:40px}body.sanma-classic .hand-heading{font-size:9px}}
 .sanma-classic-board .sanma-opponent-melds,.sanma-classic-board .sanma-opponent-extracted{right:auto;bottom:auto}.sanma-classic-board .sanma-river>.riichi-tile{transform:rotate(90deg);z-index:1}.sanma-classic-board .net-tile.flower{font-size:calc(var(--size)*.7);font-family:serif;font-weight:700;line-height:1}body.sanma-classic #sanma-own-melds .stile{--size:clamp(18px,5vw,30px)}
 .sanma-classic-board .sanma-opponent-strip.right:has(:not(.back)){left:1%}
+
+/* Seats advance self -> opposite -> left; score text always faces the viewer. */
+.sanma-classic-board .classic-score.score-2{transform:none}
+.sanma-classic-board .sanma-seat{width:calc(var(--river-tile)*6 + 5px);height:calc(var(--river-tile)*5.68 + 3px)}
+.sanma-classic-board .sanma-seat.top,.sanma-classic-board .sanma-seat.top:has(.sanma-river>:nth-child(19)){left:35%;top:calc(40% - var(--river-tile)*5.68 - 3px);transform:rotate(180deg)}
+.sanma-classic-board .sanma-seat.right{left:calc(31% - var(--river-tile)*5.68 - 3px);top:35%;transform:translateX(calc(var(--river-tile)*5.68 + 3px)) rotate(90deg)}
+.sanma-classic-board .sanma-seat-label{display:block;transform:none}
+.sanma-classic-board .self .sanma-seat-label{top:auto;bottom:calc(100% + 3px);left:0}
+.sanma-classic-board .top .sanma-seat-label,.sanma-classic-board .right .sanma-seat-label{display:none}
+.sanma-classic-board .extracted-2 .extracted-tiles,.sanma-classic-board .melds-2 .sanma-meld{transform:none}
+.sanma-classic-board .sanma-opponent-strip.right{left:0;top:1%;height:64%;overflow:hidden}
