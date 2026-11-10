@@ -22,14 +22,15 @@ const {chromium}=require('playwright'),http=require('http'),fs=require('fs'),pat
   await page.screenshot({path:'mahjong-jewel-settings.png',fullPage:true});await page.locator('#jewel-start-seat').selectOption('0');await page.locator('#apply-start').click();await page.evaluate(()=>{game.speed=0;document.body.style.paddingTop='';});await page.waitForSelector('#hand button:enabled');assert.equal(await page.evaluate(()=>tile('p0').querySelector('.jewel-tag').textContent),'アメ');assert.equal(await page.evaluate(()=>tile('pA').querySelector('.jewel-tag').textContent),'パル');
   for(let i=0;i<20;i++){
    if(await page.evaluate(()=>finished)){if(await page.locator('#match-complete[open]').count())await page.locator('.complete-buttons button').first().click();else await page.locator('#new').click();await page.evaluate(()=>{game.speed=0;});}
-   await page.waitForFunction(()=>document.querySelector('#hand button:enabled')||document.querySelector('#actions button')||document.querySelector('#win-confirm[open]')||document.querySelector('#riichi-confirm[open]')||finished);
+   await page.waitForFunction(()=>document.querySelector('#hand button:enabled')||document.querySelector('#actions button')||document.querySelector('#win-confirm[open]')||document.querySelector('#riichi-confirm[open]')||document.querySelector('#draw-confirm[open]')||finished);
+   if(await page.locator('#draw-confirm[open]').count()){await page.locator('#draw-next').click();continue;}
    if(await page.locator('#riichi-confirm').evaluate(el=>el.open)){await page.locator('#riichi-next').click();continue;}
    if(await page.locator('#win-confirm').evaluate(el=>el.open)){await page.locator('#win-next').click();continue;}
    let b=page.locator('#hand button:enabled').first();if(!await b.count())b=page.locator('#actions button').filter({hasText:'見送り'}).first();if(!await b.count())b=page.locator('#actions button').first();if(await b.count())await b.click();
   }
-  await page.waitForFunction(()=>document.querySelector('#hand button:enabled')||document.querySelector('#actions button')||document.querySelector('#win-confirm[open]')||document.querySelector('#riichi-confirm[open]')||finished);
+  await page.waitForFunction(()=>document.querySelector('#hand button:enabled')||document.querySelector('#actions button')||document.querySelector('#win-confirm[open]')||document.querySelector('#riichi-confirm[open]')||document.querySelector('#draw-confirm[open]')||finished);
   // Freeze the random match before layout checks; a CPU win must not block menu clicks.
-  await page.evaluate(()=>{game.stop();for(const id of ['win-confirm','riichi-confirm'])document.getElementById(id).close();globalThis.MatchComplete?.close();});
+  await page.evaluate(()=>{game.stop();globalThis.DrawHands?.clear();for(const id of ['win-confirm','riichi-confirm'])document.getElementById(id).close();globalThis.MatchComplete?.close();});
   assert.equal(await page.locator('.seat').count(),4);assert.ok(await page.locator('.river .tile').count()>0);
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
   await page.setViewportSize({width:844,height:390});
