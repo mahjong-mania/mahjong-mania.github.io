@@ -13,3 +13,5 @@
 .sanma-classic-board .top .sanma-seat-label,.sanma-classic-board .right .sanma-seat-label{display:none}
 .sanma-classic-board .extracted-2 .extracted-tiles,.sanma-classic-board .melds-2 .sanma-meld{transform:none}
 .sanma-classic-board .sanma-opponent-strip.right{left:0;top:1%;height:64%;overflow:hidden}
+
+.sanma-classic-board .classic-score{animation:none!important;transition:none!important;box-shadow:none!important}
