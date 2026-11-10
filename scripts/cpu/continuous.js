@@ -41,7 +41,7 @@ try{while(!stopping&&Date.now()<deadline){
   save();
  }
  }
- const final={at:new Date().toISOString(),mode,phase:state.phase,config:state.candidate||state.incumbent,metrics:metrics(state.phase==='final'?(state.finalResults||state.results):state.results),games:state.games,coverage:state.coverage,errors:state.errors,reason:stopping?'signal':'deadline',productionDeployed:false};atomic('stopped.json',final);save();
+ const final={at:new Date().toISOString(),mode,phase:state.phase,config:state.candidate||state.incumbent,metrics:metrics(state.phase==='final'?(state.finalResults||state.results):state.results),games:state.games,coverage:state.coverage,errors:state.errors,reason:stopping?'signal':'deadline',productionDeployed:false};if(state.phase==='final'&&state.finalResults?.length){const summary={...final,policySourceSha256,adoptable:final.metrics.ci95[0]>0&&final.metrics.independentSeeds>=24&&final.metrics.inferenceCoverage>=.98&&!state.failureCount};atomic('final-evaluation.json',summary);}atomic('stopped.json',final);save();
 }finally{client.close();try{fs.unlinkSync(lockPath);}catch{}}
 
 })().catch(e=>{console.error(e);process.exitCode=1;});

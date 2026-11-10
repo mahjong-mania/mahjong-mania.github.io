@@ -108,3 +108,7 @@ Verified:
 - `node scripts/build-pwa.js` updates pinned asset versions and offline cache. Keep runtime/log/test artifacts out of this build.
 
 If re-provisioning, create the runtime venv, install CPU PyTorch/dependencies from `scripts/cpu/requirements-cpu.txt` using the official CPU wheel index, then run the pinned asset fetcher. Respect the managed environment's networking/package instructions.
+
+## Final-tail reporting correction (2026-11-10 20:00 UTC)
+
+On final-phase exit, the controller now writes final-evaluation.json from all accumulated independent final pairs, including an incomplete last batch. Previously that file was refreshed only after complete batches, so the last completed games before the deadline could be omitted. Deadline-exit verification covers multiple batches plus a partial tail, adoption checks, and lock release. Both controllers were gracefully resumed with this reporting-only change; policy, seeds and active trial results are unchanged.
