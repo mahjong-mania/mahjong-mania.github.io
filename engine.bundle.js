@@ -58,12 +58,12 @@ class Player extends M.Player {
  action(msg,callback) {
   this.message=msg;
   super.action(msg,callback);
-  if(!callback){this.applyOpenHands();this.onUpdate(msg,this);}
+  if(!callback){this.applyOpenHands();globalThis.JewelMortal?.observe(this,msg);this.onUpdate(msg,this);}
  }
  allow_lizhi(hand,tile){if(this._rule.nekkyou)this._rule.jewelIndicators=this.model.shan?.baopai||[];return super.allow_lizhi(hand,tile);}
  applyOpenHands(){if(this.message.qipai)this.model.openRiichi=[false,false,false,false];for(const [l,text]of Object.entries(this.message.openHands||{})){this.model.shoupai[l]=M.Shoupai.fromString(text);this.model.openRiichi??=[false,false,false,false];this.model.openRiichi[l]=true;}}
  respond() {
-  this.applyOpenHands();this.onUpdate(this.message,this);
+  this.applyOpenHands();globalThis.JewelMortal?.observe(this,this.message);this.onUpdate(this.message,this);
   const callback=this._callback;
   // The base Player marks an offered winning discard as passed after this handler
   // returns. Capture legal reactions before an asynchronous riichi popup yields.

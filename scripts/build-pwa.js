@@ -1,6 +1,6 @@
 'use strict';
 const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto'),root=path.resolve(__dirname,'..');
-function files(dir){return fs.readdirSync(dir,{withFileTypes:true}).filter(e=>!e.name.startsWith('.')&&e.name!=='scripts'&&e.name!=='README.md').flatMap(e=>e.isDirectory()?files(path.join(dir,e.name)):[path.join(dir,e.name)]);}
+function files(dir){return fs.readdirSync(dir,{withFileTypes:true}).filter(e=>!e.name.startsWith('.')&&!['scripts','README.md','node_modules','logs','coverage','test-results','playwright-report'].includes(e.name)).flatMap(e=>e.isDirectory()?files(path.join(dir,e.name)):[path.join(dir,e.name)]);}
 const all=files(root).filter(f=>!['sw.js','online.html','online.js'].includes(path.basename(f)));
 const clean=s=>s.replace(/[?&]build=[a-f0-9]{16}/g,'').replace(/<meta name="houseki-build" content="[a-f0-9]{16}">/g,'');
 const hash=crypto.createHash('sha256');for(const f of all)hash.update(path.relative(root,f)).update(f.endsWith('.html')?clean(fs.readFileSync(f,'utf8')):fs.readFileSync(f));

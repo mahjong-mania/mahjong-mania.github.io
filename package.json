@@ -1,1 +1,11 @@
-{"name":"mahjong-mania-site","private":true,"scripts":{"test":"node scripts/smoke-ui.js"}}
+{
+  "name": "mahjong-mania-site",
+  "private": true,
+  "scripts": {
+    "test": "node scripts/smoke-ui.js",
+    "test:cpu": "node scripts/cpu/test-core.js",
+    "cpu:four": "node scripts/cpu/continuous.js four",
+    "cpu:sanma": "node scripts/cpu/continuous.js sanma",
+    "cpu:checkpoint": "python scripts/cpu/checkpoint.py --once"
+  }
+}

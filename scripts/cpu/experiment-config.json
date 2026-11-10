@@ -1,0 +1,24 @@
+{
+  "deadline": "2026-11-11T01:00:00Z",
+  "checkpointIntervalSeconds": 900,
+  "modes": [
+    "four",
+    "sanma"
+  ],
+  "baseline": "repository expert CPU at 33451ecdc58e38a3aa37ff138a85b1a148aa416c",
+  "initial": {
+    "mortalWeight": 0.25,
+    "shapeWeight": 2,
+    "chipWeight": 1,
+    "defenseWeight": 1,
+    "riichiBias": 0.25,
+    "shubaBias": 0
+  },
+  "screenPairs": 48,
+  "confirmPairs": 192,
+  "finalPairs": 384,
+  "confirmationLeadMinutes": 30,
+  "saveDecisionTracesEvery": 5,
+  "note": "Frozen Mortal backbone, experimental DQN head distillation and chip-return regression, plus custom-rule correction search. No automatic production promotion.",
+  "trainingIntervalSeconds": 900
+}
