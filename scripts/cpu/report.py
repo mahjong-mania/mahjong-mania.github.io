@@ -10,8 +10,9 @@ for mode in ['four','sanma']:
  if (folder/'runner.lock').exists():
   try:os.kill(json.loads((folder/'runner.lock').read_text())['pid'],0);data['live']=True
   except (ProcessLookupError,PermissionError,ValueError):pass
- if (folder/'models/latest.json').exists():
-  head=json.loads((folder/'models/latest.json').read_text());data['headTraining']={k:head.get(k) for k in ['modelPath','sha256','samples','totalSupportedSamples','trainSamples','validationSamples','backboneFrozen','finishedAt','strengthImprovementProven']};data['headTraining']['lastLoss']=head.get('history',[None])[-1]
+ for model_dir,field in [('models','headTraining'),('models-c3','largeHeadTraining')]:
+  if (folder/model_dir/'latest.json').exists():
+   head=json.loads((folder/model_dir/'latest.json').read_text());data[field]={k:head.get(k) for k in ['modelPath','sha256','samples','totalSupportedSamples','trainSamples','validationSamples','backboneFrozen','backbone','backboneSHA256','baseModelSHA256','overlay','skippedBackboneSamples','finishedAt','strengthImprovementProven']};data[field]['lastLoss']=head.get('history',[None])[-1]
  if (folder/'trials.jsonl').exists():
   trials=[json.loads(line) for line in (folder/'trials.jsonl').read_text().splitlines() if line.strip()];data['lastTrials']=trials[-3:]
  if (folder/'final-evaluation.json').exists():data['finalEvaluation']=json.loads((folder/'final-evaluation.json').read_text())

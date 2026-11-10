@@ -6,17 +6,20 @@ anchor to the initial model. This is experimental offline head training,
 not a full rules-aware Mortal retraining pipeline.
 """
 import argparse,fcntl,datetime as dt,gzip,hashlib,importlib,json,os,pathlib,random,sys,time
-ap=argparse.ArgumentParser();ap.add_argument('mode',choices=['four','sanma']);ap.add_argument('--data',default='/workspace/mahjong-training');ap.add_argument('--runtime',default='/workspace/mortal-runtime');ap.add_argument('--epochs',type=int,default=12);ap.add_argument('--max-samples',type=int,default=20000);a=ap.parse_args()
+ap=argparse.ArgumentParser();ap.add_argument('mode',choices=['four','sanma']);ap.add_argument('--data',default='/workspace/mahjong-training');ap.add_argument('--runtime',default='/workspace/mortal-runtime');ap.add_argument('--epochs',type=int,default=12);ap.add_argument('--max-samples',type=int,default=20000);ap.add_argument('--backbone',choices=['small','c3'],default='small');a=ap.parse_args()
+if a.backbone=='c3' and a.mode!='four':ap.error('C3 is four-player only')
 sys.path.insert(0,a.runtime)
 import torch
 from torch.nn import functional as F
+from model_state import load_state,backbone_sha,file_sha
 torch.set_num_threads(1);torch.manual_seed(6631)
 name='mortal' if a.mode=='four' else 'mortal3p';module=importlib.import_module(name+'.model');root=pathlib.Path(a.data)/a.mode
+base_path=pathlib.Path(a.runtime)/('c3' if a.backbone=='c3' else name)/'mortal.pth';state=load_state(base_path,a.runtime);base_hash=file_sha(base_path);fingerprint=backbone_sha(state);expected_tag=str(state['config']['resnet']['conv_channels'])+'x'+str(state['config']['resnet']['num_blocks'])
 root.mkdir(parents=True,exist_ok=True)
 lock=(root/'training.lock').open('w')
 try:fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
 except BlockingIOError:raise SystemExit('head training already running')
-samples=[];sources=[];seen=0;reservoir=random.Random(6631)
+samples=[];sources=[];seen=0;skipped_backbone=0;reservoir=random.Random(6631)
 def action(reply):
  cut=reply.get('dapai') or reply.get('discard')
  if not cut:return None
@@ -29,7 +32,10 @@ for p in sorted(root.glob('trace-*.json.gz')):
   with gzip.open(p,'rt') as f:r=json.load(f)
   reward=max(-4,min(4,(r['terminal']['rankChips']+r['terminal']['bonusChips'])/30))
   for s in r['samples']:
-   if s.get('backbone','32x2')!='32x2':continue
+   if s.get('backbone','32x2')!=expected_tag or s.get('backboneSHA256',fingerprint)!=fingerprint:
+    skipped_backbone+=1;continue
+   if a.backbone=='c3' and not s.get('backboneSHA256') and not s.get('model','').endswith(base_hash[:12]):
+    skipped_backbone+=1;continue
    phi=s.get('phi');q=s.get('q');teacher=action(s.get('teacher',{}));chosen=action(s['chosen'])
    if phi is None or not q or teacher is None or chosen is None:continue
    if teacher>=len(q) or chosen>=len(q) or q[teacher] is None or q[chosen] is None:continue
@@ -45,7 +51,6 @@ if len(samples)<128:
 # Split by game seed, never random decision rows from the same game.
 train=[s for s in samples if s[5]%5!=0];val=[s for s in samples if s[5]%5==0]
 if len(val)<16:val=[]
-state=torch.load(pathlib.Path(a.runtime)/name/'mortal.pth',map_location='cpu',weights_only=True)
 net=module.DQN(version=state['config']['control']['version']);net.load_state_dict(state['current_dqn']);opt=torch.optim.AdamW(net.parameters(),lr=0.0001,weight_decay=.01)
 def tensors(data):
  return (torch.tensor([s[0] for s in data],dtype=torch.float32),torch.tensor([[v if v is not None else 0 for v in s[1]] for s in data],dtype=torch.float32),torch.tensor([[v is not None for v in s[1]] for s in data],dtype=torch.bool),torch.tensor([s[2] for s in data]),torch.tensor([s[3] for s in data]),torch.tensor([s[4] for s in data],dtype=torch.float32))
@@ -64,12 +69,12 @@ for epoch in range(a.epochs):
  history.append({'epoch':epoch+1,'loss':total/len(train),'validationTeacherLoss':validation})
  if validation<best_loss:best_loss=validation;best={k:v.detach().clone() for k,v in net.state_dict().items()}
 state['current_dqn']=best
-stamp=dt.datetime.now(dt.timezone.utc).strftime('%Y%m%dT%H%M%SZ');out=root/'models';out.mkdir(exist_ok=True)
-model=out/(stamp+'.pth');tmp=model.with_suffix('.tmp');torch.save(state,tmp)
+stamp=dt.datetime.now(dt.timezone.utc).strftime('%Y%m%dT%H%M%S%fZ');out=root/('models-c3' if a.backbone=='c3' else 'models');out.mkdir(exist_ok=True)
+model=out/(stamp+'.pth');tmp=model.with_suffix('.tmp');payload={'formatVersion':1,'config':state['config'],'baseModelPath':str(base_path),'baseModelSHA256':base_hash,'current_dqn':best} if a.backbone=='c3' else state;torch.save(payload,tmp)
 with tmp.open('rb') as f:os.fsync(f.fileno())
 os.replace(tmp,model)
 checkpoint={'model':net.state_dict(),'optimizer':opt.state_dict(),'torchRng':torch.get_rng_state(),'epochs':a.epochs,'sampleCount':len(samples),'sourceHashes':sources}
 tmp=out/'training-state.tmp';torch.save(checkpoint,tmp);os.replace(tmp,out/'training-state.pth')
-report={'trained':True,'mode':a.mode,'modelPath':str(model),'sha256':hashlib.sha256(model.read_bytes()).hexdigest(),'samples':len(samples),'totalSupportedSamples':seen,'trainSamples':len(train),'validationSamples':len(val),'backboneFrozen':True,'baseModel':name+'-akagi-small-v4','history':history,'sourceFiles':sources,'finishedAt':dt.datetime.now(dt.timezone.utc).isoformat(),'strengthImprovementProven':False}
+report={'trained':True,'mode':a.mode,'modelPath':str(model),'sha256':hashlib.sha256(model.read_bytes()).hexdigest(),'samples':len(samples),'totalSupportedSamples':seen,'trainSamples':len(train),'validationSamples':len(val),'backboneFrozen':True,'baseModel':('c3-mortal-v4' if a.backbone=='c3' else name+'-akagi-small-v4'),'backbone':expected_tag,'backboneSHA256':fingerprint,'baseModelSHA256':base_hash,'overlay':a.backbone=='c3','skippedBackboneSamples':skipped_backbone,'history':history,'sourceFiles':sources,'finishedAt':dt.datetime.now(dt.timezone.utc).isoformat(),'strengthImprovementProven':False}
 tmp=out/'latest.json.tmp';tmp.write_text(json.dumps(report,indent=2));os.replace(tmp,out/'latest.json')
 print(json.dumps(report))

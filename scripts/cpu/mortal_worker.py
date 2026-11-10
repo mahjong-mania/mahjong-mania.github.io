@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Local JSONL Mortal inference worker. No hidden hands or remote API calls."""
-import argparse, hashlib, importlib, json, os, pathlib, sys, time, traceback
+import argparse, gc, hashlib, importlib, json, os, pathlib, sys, time, traceback
 runtime=os.environ.get('MORTAL_RUNTIME','/workspace/mortal-runtime')
 sys.path.insert(0,runtime)
 import torch
 import numpy as np
+from model_state import load_state,backbone_sha
 torch.set_num_threads(1)
 engines={}
 class ReplayEngine:
@@ -24,7 +25,7 @@ def load(mode,model_path=None):
   name='mortal3p' if mode=='sanma' else 'mortal'
   m=importlib.import_module(name+'.model')
   weight_path=pathlib.Path(model_path) if model_path else pathlib.Path(runtime)/name/'mortal.pth'
-  s=torch.load(weight_path,map_location='cpu',weights_only=True)
+  s=load_state(weight_path,runtime)
   cfg=s['config'];version=cfg['control']['version']
   brain=m.Brain(version=version,**cfg['resnet']).eval();brain.load_state_dict(s['mortal'])
   dqn=m.DQN(version=version).eval();dqn.load_state_dict(s['current_dqn'])
@@ -32,10 +33,13 @@ def load(mode,model_path=None):
   engine=ReplayEngine(base)
   engine.model_sha256=hashlib.sha256(weight_path.read_bytes()).hexdigest()
   engine.backbone_id=str(cfg['resnet']['conv_channels'])+'x'+str(cfg['resnet']['num_blocks'])
+  engine.backbone_sha256=backbone_sha(s)
   def capture(_module,_inputs,output):
    if engine.live:engine.phi=output.detach().cpu().numpy()[0].tolist()
   brain.register_forward_hook(capture)
   engines[key]=(m,engine)
+  if len(engines)>8:
+   del engines[next(iter(engines))];gc.collect()
  return engines[key]
 def infer(req):
  mode=req['mode'];m,engine=load(mode,req.get('modelPath'));bot=m.Bot(engine,int(req['seat']));events=req['events'];engine.q=None
@@ -43,7 +47,7 @@ def infer(req):
  for i,event in enumerate(events):
   engine.live=i==len(events)-1
   raw=bot.react(json.dumps(event,separators=(',',':')))
- result={'phi':getattr(engine,'phi',None) if req.get('trace') else None,'reaction':json.loads(raw) if raw else None,'q':engine.q,'model':mode+'-mortal-v4:'+engine.model_sha256[:12],'modelSHA256':engine.model_sha256,'backboneId':engine.backbone_id,'actualInference':engine.q is not None}
+ result={'phi':getattr(engine,'phi',None) if req.get('trace') else None,'reaction':json.loads(raw) if raw else None,'q':engine.q,'model':mode+'-mortal-v4:'+engine.model_sha256[:12],'modelSHA256':engine.model_sha256,'backboneId':engine.backbone_id,'backboneSHA256':engine.backbone_sha256,'actualInference':engine.q is not None}
  if raw and json.loads(raw)['type']=='reach':
   engine.live=True;engine.q=None
   nxt=bot.react(json.dumps({'type':'reach','actor':int(req['seat'])}))

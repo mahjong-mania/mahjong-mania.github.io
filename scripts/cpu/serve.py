@@ -3,7 +3,7 @@
 import argparse,http.server,json,pathlib,threading,time,urllib.parse
 from mortal_worker import infer
 ROOT=pathlib.Path(__file__).resolve().parents[2]
-ap=argparse.ArgumentParser();ap.add_argument('--port',type=int,default=8790);ap.add_argument('--experimental',action='store_true');a=ap.parse_args()
+ap=argparse.ArgumentParser();ap.add_argument('--port',type=int,default=8790);ap.add_argument('--experimental',action='store_true');ap.add_argument('--four-model',help='Local verification override for the four-player model');a=ap.parse_args()
 lock=threading.Lock();stats={'requests':0,'inferences':0,'errors':0}
 def policy(mode):
  folder=pathlib.Path('/workspace/mahjong-training')/mode;config=json.loads((ROOT/'scripts/cpu/experiment-config.json').read_text())['initial']
@@ -12,6 +12,7 @@ def policy(mode):
   report=json.loads(final.read_text())
   if report.get('adoptable'):config=report['config']
  elif a.experimental and (folder/'state.json').exists():config=json.loads((folder/'state.json').read_text()).get('incumbent',config)
+ if mode=='four' and a.four_model:config={**config,'modelPath':a.four_model}
  return config
 class Handler(http.server.SimpleHTTPRequestHandler):
  def __init__(self,*args,**kwargs):super().__init__(*args,directory=str(ROOT),**kwargs)
