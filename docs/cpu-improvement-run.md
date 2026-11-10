@@ -112,3 +112,7 @@ If re-provisioning, create the runtime venv, install CPU PyTorch/dependencies fr
 ## Final-tail reporting correction (2026-11-10 20:00 UTC)
 
 On final-phase exit, the controller now writes final-evaluation.json from all accumulated independent final pairs, including an incomplete last batch. Previously that file was refreshed only after complete batches, so the last completed games before the deadline could be omitted. Deadline-exit verification covers multiple batches plus a partial tail, adoption checks, and lock release. Both controllers were gracefully resumed with this reporting-only change; policy, seeds and active trial results are unchanged.
+
+## Async trainer repair (2026-11-10 21:05 UTC)
+
+The managed runtime returned EPERM from Node synchronous child-process collection even when the small trainer produced a model. The exception prevented the subsequent C3 trainer and successful training-log records. The controller now awaits asynchronous execFile with the same timeout and buffer limits. Policy and evaluation seeds are unchanged; runners resume existing trials. Historical training-failures remain recorded. A one-off C3 repair trainer may briefly hold the mode training lock; that lock correctly rejects concurrent training.
