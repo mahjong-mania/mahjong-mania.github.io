@@ -15,3 +15,28 @@
 .sanma-classic-board .sanma-opponent-strip.right{left:0;top:1%;height:64%;overflow:hidden}
 
 .sanma-classic-board .classic-score{animation:none!important;transition:none!important;box-shadow:none!important}
+
+/* Match the app typography and identify ownership without changing table geometry. */
+.sanma-classic-board{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Noto Sans JP",sans-serif;border-color:#405975!important;border-radius:10px;background:radial-gradient(ellipse at 48% 40%,#1c3856,#132840 70%,#102038)!important}
+.sanma-classic-board #sanma-center{background:#102136ed;border-color:#5b7590;border-radius:8px;box-shadow:0 5px 16px #0003}
+.sanma-classic-board #sanma-round{font-family:inherit;font-weight:650;font-size:clamp(15px,4.8cqw,29px);letter-spacing:.02em;color:#edf3fb}
+.sanma-classic-board .classic-score b{font-family:inherit;font-weight:600;font-variant-numeric:tabular-nums;font-size:clamp(10px,3cqw,18px)}
+.sanma-classic-board .classic-score{color:#bdcde0}
+.sanma-classic-board .sanma-seat-label{display:none!important}
+.sanma-classic-board .classic-player-name{position:absolute;display:flex;align-items:center;gap:4px;max-width:30%;height:5%;font-size:clamp(8px,2.35cqw,13px);line-height:1.2;color:#dce8f5;border-left:2px solid var(--owner);padding:1px 4px;background:#102137dc;border-radius:0 4px 4px 0;overflow:hidden;white-space:nowrap;z-index:3}
+.sanma-classic-board .classic-player-name>span{font-size:clamp(7px,1.8cqw,10px);color:var(--owner);flex:none}
+.sanma-classic-board .classic-player-name>strong{font-weight:550;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.sanma-classic-board .player-2{--owner:#b8ace4;left:35%;top:7%;width:30%}
+.sanma-classic-board .player-1{--owner:#84cbd1;left:7%;top:28.5%;width:25%}
+.sanma-classic-board .player-0{--owner:#e2cb8e;left:42%;top:69.5%;width:26%}
+.sanma-classic-board .melds-2,.sanma-classic-board .extracted-2{--owner:#b8ace4}
+.sanma-classic-board .melds-1,.sanma-classic-board .extracted-1{--owner:#84cbd1}
+.sanma-classic-board .sanma-opponent-melds,.sanma-classic-board .sanma-opponent-extracted{background:#10213788;border:1px solid #69839b40;border-top:2px solid var(--owner);border-radius:4px;padding-top:3px}
+.sanma-classic-board .classic-zone-title{position:absolute;left:0;top:-14px;width:100%;font-family:inherit;font-size:clamp(7px,1.9cqw,11px);font-weight:500;line-height:11px;color:var(--owner);text-align:left;white-space:nowrap}
+.sanma-classic-board .sanma-river{border-radius:3px;background:#07162730;outline:1px solid #7493ad20}
+.sanma-classic-board .sanma-river:empty{background:none;outline:none}
+.sanma-classic-board #sanma-dora,.sanma-classic-board #sanma-shuba-status{background:#102137c9;border-color:#536d8866;border-radius:7px}
+.sanma-classic-board .classic-score.current{border-bottom-color:#82c7cb}
+.sanma-classic-board .player-2{top:14%;height:4%}
+.sanma-classic-board .player-0{height:3%}
+.sanma-classic-board .sanma-opponent-strip.top:has(:not(.back)){left:34%;max-width:64%}
