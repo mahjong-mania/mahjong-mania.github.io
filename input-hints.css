@@ -1,0 +1,8 @@
+/* Decorative edit cue: original labels and native input interactions remain intact. */
+input:is(:not([type]),[type="text"],[type="number"],[type="url"],[type="email"],[type="tel"],[type="search"],[type="password"]):not([readonly]):not(:disabled),
+textarea:not([readonly]):not(:disabled){
+ background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%238ed8e5' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m16 3 5 5-12 12-6 1 1-6L16 3Z'/%3E%3Cpath d='m14 5 5 5M4 15l5 5'/%3E%3C/svg%3E")!important;
+ background-repeat:no-repeat!important;background-position:right .65rem center!important;background-size:16px 16px!important;padding-inline-end:2rem!important;
+}
+input[type="number"]:not([readonly]):not(:disabled){background-position:left .65rem center!important;padding-inline-start:2rem!important;padding-inline-end:.65rem!important;}
+textarea:not([readonly]):not(:disabled){background-position:right .65rem top .75rem!important;}

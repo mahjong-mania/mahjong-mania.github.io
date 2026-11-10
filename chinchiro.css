@@ -3,3 +3,5 @@
 .cc-player-presets{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}.cc-player-presets button{flex:1;font-size:12px;padding:10px 8px}#cc-names select{width:100%;font-size:12px}.cc-cpu-note{color:#92dbe5}
 
 #cc-bet-controls{padding:10px;border:1px solid #557389;border-radius:10px;background:#10273b}#cc-bet-controls[hidden]{display:none}#cc-bet-controls label{display:block;font-size:13px;margin-bottom:6px}#cc-bet{width:100%;min-height:44px;font-size:18px;text-align:center;color:#eef5fd;background:#0b192c;border:1px solid #6f93aa;border-radius:7px}#cc-bet-note{font-size:11px;margin:6px 0 0;color:#c4d7e6}
+
+.dice-sound-toolbar{display:flex;justify-content:flex-end;gap:8px;margin:8px 0}.dice-sound-toggle{font-size:13px;min-height:44px;border-radius:22px;padding:8px 15px;white-space:nowrap}.dice-sound-toggle[aria-pressed=true]{color:#a5edf0;border-color:#75b7c5;background:#163747}.dice-sound-toggle[aria-pressed=false]{color:#bac8d4;background:#142331}#cc-sound-quick{justify-self:end}
