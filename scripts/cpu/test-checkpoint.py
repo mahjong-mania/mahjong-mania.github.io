@@ -12,6 +12,17 @@ class Checkpoints(unittest.TestCase):
    manifest=json.loads((root/'restore/manifest.json').read_text())['files'];self.assertIn('runtime/mortal/mortal.pth',manifest);self.assertIn('runtime/mortal3p/mortal.pth',manifest)
    digest=manifest['training/state.json']['sha256'];(cp.BACKUP/'objects'/digest).write_text('corrupt')
    with self.assertRaises(ValueError):cp.restore(saved['archive'],root/'damaged')
+ def test_compressed_objects(self):
+  with tempfile.TemporaryDirectory() as folder:
+   root=pathlib.Path(folder);cp.DATA=root/'data';cp.DATA.mkdir();cp.BACKUP=root/'backup'
+   data=b'public trace repeated record\n'*1000;(cp.DATA/'trace.jsonl').write_bytes(data)
+   saved=cp.save('compressed-test');cp.restore(saved['archive'],root/'restore')
+   self.assertEqual((root/'restore/training/trace.jsonl').read_bytes(),data)
+   manifest=json.loads((root/'restore/manifest.json').read_text())['files'];digest=manifest['training/trace.jsonl']['sha256']
+   obj=cp.BACKUP/'objects'/(digest+'.gz');self.assertTrue(obj.exists());self.assertLess(obj.stat().st_size,len(data))
+   import gzip
+   obj.write_bytes(gzip.compress(b'wrong data'))
+   with self.assertRaises(ValueError):cp.restore(saved['archive'],root/'damaged')
  def test_independent_periodic_process(self):
   with tempfile.TemporaryDirectory() as folder:
    root=pathlib.Path(folder);data=root/'data';backup=root/'backup';data.mkdir();(data/'state.json').write_text('{"step":1}')

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Independent 15-minute checkpoints, with atomic content-addressed storage."""
+import gzip
 import argparse, datetime as dt, fcntl, hashlib, io, json, os, pathlib, signal, tarfile, time
 ROOT=pathlib.Path(__file__).resolve().parents[2]
 DATA=pathlib.Path(os.environ.get('MAHJONG_TRAINING_DIR','/workspace/mahjong-training'))
@@ -13,9 +14,12 @@ def atomic_json(path,data):
 def object_file(p):
  # Read once: even an append-only JSONL file is archived with a matching hash.
  data=p.read_bytes();sha=hashlib.sha256(data).hexdigest();target=BACKUP/'objects'/sha
- if not target.exists():
-  tmp=target.with_suffix('.part')
-  with tmp.open('wb') as f:f.write(data);f.flush();os.fsync(f.fileno())
+ if not target.exists() and not target.with_suffix('.gz').exists():
+  packed=gzip.compress(data,compresslevel=3,mtime=0) if len(data)>4096 else data
+  if len(packed)<len(data)*.9:target=target.with_suffix('.gz');payload=packed
+  else:payload=data
+  tmp=target.with_suffix(target.suffix+'.part')
+  with tmp.open('wb') as f:f.write(payload);f.flush();os.fsync(f.fileno())
   os.replace(tmp,target)
  return {'sha256':sha,'bytes':len(data)}
 def _save(reason='periodic'):
@@ -59,7 +63,8 @@ def restore(archive,destination):
   for rel,meta in json.loads(manifest.read_text())['files'].items():
    p=pathlib.Path(rel)
    if p.is_absolute() or '..' in p.parts:raise ValueError('invalid manifest path')
-   data=(pathlib.Path(archive).parent/'objects'/meta['sha256']).read_bytes()
+   obj=pathlib.Path(archive).parent/'objects'/meta['sha256']
+   data=obj.read_bytes() if obj.exists() else gzip.decompress(obj.with_suffix('.gz').read_bytes())
    if len(data)!=meta['bytes'] or hashlib.sha256(data).hexdigest()!=meta['sha256']:raise ValueError('checksum failed: '+rel)
    target=destination/p;target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes(data)
  print('Verified restore to '+str(destination))

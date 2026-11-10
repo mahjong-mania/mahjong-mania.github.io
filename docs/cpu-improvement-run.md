@@ -116,3 +116,7 @@ On final-phase exit, the controller now writes final-evaluation.json from all ac
 ## Async trainer repair (2026-11-10 21:05 UTC)
 
 The managed runtime returned EPERM from Node synchronous child-process collection even when the small trainer produced a model. The exception prevented the subsequent C3 trainer and successful training-log records. The controller now awaits asynchronous execFile with the same timeout and buffer limits. Policy and evaluation seeds are unchanged; runners resume existing trials. Historical training-failures remain recorded. A one-off C3 repair trainer may briefly hold the mode training lock; that lock correctly rejects concurrent training.
+
+## Checkpoint compression (2026-11-10 22:05 UTC)
+
+To preserve free disk through the deadline, compressible content-addressed objects may now be stored as objects/<original-SHA256>.gz. Manifests continue to describe the original bytes/hash; current restore accepts either raw or gzip objects and checks the decompressed checksum. Existing objects were converted only after verifying both original and decompressed SHA256, preserving every archive. Use the current checkpoint.py for restoration, including old archives whose embedded restore script predates compression. Tests cover gzip restore, corrupt decoded content, legacy raw objects, and independent periodic saves. Keep the complete objects directory with archives. No training records or model snapshots are pruned.
