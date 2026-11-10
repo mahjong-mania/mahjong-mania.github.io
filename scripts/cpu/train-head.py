@@ -29,6 +29,7 @@ for p in sorted(root.glob('trace-*.json.gz')):
   with gzip.open(p,'rt') as f:r=json.load(f)
   reward=max(-4,min(4,(r['terminal']['rankChips']+r['terminal']['bonusChips'])/30))
   for s in r['samples']:
+   if s.get('backbone','32x2')!='32x2':continue
    phi=s.get('phi');q=s.get('q');teacher=action(s.get('teacher',{}));chosen=action(s['chosen'])
    if phi is None or not q or teacher is None or chosen is None:continue
    if teacher>=len(q) or chosen>=len(q) or q[teacher] is None or q[chosen] is None:continue

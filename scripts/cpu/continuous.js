@@ -4,7 +4,8 @@ const {play,rng}=require('./evaluate'),{MortalClient}=require('./mortal-client')
 const mode=process.argv[2];if(!['four','sanma'].includes(mode))throw Error('mode must be four or sanma');
 const root=process.env.MAHJONG_TRAINING_DIR||'/workspace/mahjong-training',dir=path.join(root,mode);fs.mkdirSync(dir,{recursive:true});
 const spec=JSON.parse(fs.readFileSync(path.join(__dirname,'experiment-config.json'))),deadline=Date.parse(spec.deadline),lockPath=path.join(dir,'runner.lock');
-const policySourceSha256=crypto.createHash('sha256').update(fs.readFileSync(path.join(__dirname,'../../mortal-cpu.js'))).digest('hex');
+const policySource=fs.readFileSync(path.join(__dirname,'../../mortal-cpu.js')),policySourceSha256=crypto.createHash('sha256').update(policySource).digest('hex');
+fs.mkdirSync(path.join(dir,'source'),{recursive:true});if(!fs.existsSync(path.join(dir,'source',policySourceSha256+'.js')))fs.writeFileSync(path.join(dir,'source',policySourceSha256+'.js'),policySource);
 function atomic(file,data){const p=path.join(dir,file),tmp=p+'.tmp';const fd=fs.openSync(tmp,'w');try{fs.writeFileSync(fd,JSON.stringify(data,null,2));fs.fsyncSync(fd);}finally{fs.closeSync(fd);}fs.renameSync(tmp,p);}
 function append(file,data){const fd=fs.openSync(path.join(dir,file),'a');try{fs.writeSync(fd,JSON.stringify(data)+'\n');fs.fsyncSync(fd);}finally{fs.closeSync(fd);}}
 try{fs.writeFileSync(lockPath,JSON.stringify({pid:process.pid,startedAt:new Date().toISOString()}),{flag:'wx'});}catch{throw Error('runner lock exists; inspect PID and resume safely');}
@@ -27,7 +28,7 @@ try{while(!stopping&&Date.now()<deadline){
  if(state.phase==='done'){// Continue collecting independent final evidence until deadline.
   state.phase='final';state.pair=0;state.results=[];state.trial++;state.candidate={...state.incumbent};
  }
- if(!state.candidate){const trained=fs.existsSync(path.join(dir,'models/latest.json'))?JSON.parse(fs.readFileSync(path.join(dir,'models/latest.json'))):null;state.candidate=state.trial===0?{...state.incumbent}:mutate();if(trained?.trained&&state.trial%3===0)state.candidate.modelPath=trained.modelPath;state.pair=0;state.results=[];save();}
+ if(!state.candidate){const trained=fs.existsSync(path.join(dir,'models/latest.json'))?JSON.parse(fs.readFileSync(path.join(dir,'models/latest.json'))):null;state.candidate=state.trial===0?{...state.incumbent}:mutate();if(trained?.trained&&state.trial%3===0)state.candidate.modelPath=trained.modelPath;if(mode==='four'&&spec.fourModelCandidates?.length&&state.trial%4===0){state.candidate.modelPath=spec.fourModelCandidates[Math.floor(state.trial/4)%spec.fourModelCandidates.length];state.candidate.mortalWeight=1;}state.pair=0;state.results=[];save();}
  await new Promise(resolve=>setImmediate(resolve));
  if(state.phase==='search'&&Date.now()-(state.lastTrainingAt||Date.parse(state.startedAt))>spec.trainingIntervalSeconds*1000){try{const output=execFileSync('/workspace/mortal-runtime/venv/bin/python',[path.join(__dirname,'train-head.py'),mode],{timeout:120000,maxBuffer:2000000,encoding:'utf8'});append('training.jsonl',JSON.parse(output.trim().split('\n').at(-1)));}catch(e){append('training-failures.jsonl',{at:new Date().toISOString(),error:e.message});}state.lastTrainingAt=Date.now();save();}
  try{runPair();}catch(e){append('failures.jsonl',{at:new Date().toISOString(),trial:state.trial,pair:state.pair,error:e.stack});state.failureCount=(state.failureCount||0)+1;state.pair++;save();if(state.failureCount>=20)throw Error('too many game failures; fix before resuming');continue;}

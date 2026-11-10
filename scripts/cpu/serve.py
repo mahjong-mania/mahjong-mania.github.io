@@ -38,7 +38,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
    model=policy(mode).get('modelPath')
    if model:
     p=pathlib.Path(model).resolve()
-    if not p.is_relative_to('/workspace/mahjong-training'):raise ValueError('untrusted model path')
+    if not (p.is_relative_to('/workspace/mahjong-training') or p.is_relative_to('/workspace/mortal-runtime')):raise ValueError('untrusted model path')
     clean['modelPath']=str(p)
    with lock:
     stats['requests']+=1;result=infer(clean);stats['inferences']+=int(result['actualInference'])

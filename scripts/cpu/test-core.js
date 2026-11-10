@@ -18,4 +18,11 @@ const p={shoupai:own,_menfeng:0,_rule:rule,model:{shoupai:[own,opp,E.M.Shoupai.f
 assert.equal(C.featuresFour(p,{dapai:'z1'}).forbidden,true);assert.equal(C.featuresFour(p,{dapai:'z3'}).forbidden,false);
 const dangerQ=Array(46).fill(null);dangerQ[27]=100;dangerQ[29]=0;
 assert.deepEqual(C.select({options:[{reply:{dapai:'z1'}},{reply:{dapai:'z3'}}],inference:{ok:true,actualInference:true,model:'four-test',q:dangerQ},score:a=>C.featuresFour(p,a),config:{defenseWeight:0}}),{dapai:'z3'});
+assert.equal(C.expectedRun([{count:1,reward:2},{count:1,reward:0}],2),1);
+assert.equal(C.expectedRun([{count:1,reward:2},{count:1,reward:4},{count:1,reward:0}],3),3);
+assert.equal(C.expectedRun([{count:1,reward:2},{count:1,reward:4}],2),6);
+const fake={lines:[],eff:[0,0,0,1],damanguan:0,diceEligible:false,allFlowers:false,fourNorth:false,allStar:false};
+assert.equal(C.sanmaBonusExpectation(g,0,{lizhi:false},fake,{left:()=>0},'p1'),7,'winter is one die per payer, expectation 3.5 each');
+assert.equal(C.sanmaBonusExpectation(g,0,{lizhi:false},{...fake,eff:[0,0,0,0],damanguan:1,diceEligible:true},{left:()=>0},'p1'),18,'two-dice doubles continuation has expectation 9 per payer');
+const originalScore=E.Sanma.score;let futureCalls=0;try{E.Sanma.score=opts=>{futureCalls++;assert.equal(opts.tianhu,0);assert.deepEqual(opts.ura,[]);return null;};const ready=E.M.Shoupai.fromString('p123456789s2334');ready._lizhi=true;C.sanmaReady(g,0,ready,['s3','s6'],{left:()=>4,physical:new Map()},{discard:'s5',riichi:true});assert.ok(futureCalls>0);}finally{E.Sanma.score=originalScore;}
 console.log('PASS: tile identities, melds, legal action masking, private-hand and hidden-wall isolation.');

@@ -31,6 +31,7 @@ def load(mode,model_path=None):
   base=m.MortalEngine(brain,dqn,False,version,enable_quick_eval=False,enable_rule_based_agari_guard=False)
   engine=ReplayEngine(base)
   engine.model_sha256=hashlib.sha256(weight_path.read_bytes()).hexdigest()
+  engine.backbone_id=str(cfg['resnet']['conv_channels'])+'x'+str(cfg['resnet']['num_blocks'])
   def capture(_module,_inputs,output):
    if engine.live:engine.phi=output.detach().cpu().numpy()[0].tolist()
   brain.register_forward_hook(capture)
@@ -42,7 +43,7 @@ def infer(req):
  for i,event in enumerate(events):
   engine.live=i==len(events)-1
   raw=bot.react(json.dumps(event,separators=(',',':')))
- result={'phi':getattr(engine,'phi',None) if req.get('trace') else None,'reaction':json.loads(raw) if raw else None,'q':engine.q,'model':mode+'-mortal-v4:'+engine.model_sha256[:12],'modelSHA256':engine.model_sha256,'actualInference':engine.q is not None}
+ result={'phi':getattr(engine,'phi',None) if req.get('trace') else None,'reaction':json.loads(raw) if raw else None,'q':engine.q,'model':mode+'-mortal-v4:'+engine.model_sha256[:12],'modelSHA256':engine.model_sha256,'backboneId':engine.backbone_id,'actualInference':engine.q is not None}
  if raw and json.loads(raw)['type']=='reach':
   engine.live=True;engine.q=None
   nxt=bot.react(json.dumps({'type':'reach','actor':int(req['seat'])}))

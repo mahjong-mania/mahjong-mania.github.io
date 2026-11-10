@@ -6,7 +6,7 @@ User scope: strengthen **four-player hard mode** and **three-player 華4シュ�
 
 - Source: `/workspace/mahjong-mania`, branch `cpu/mortal-house-rules`. Original expert CPU baseline: `33451ecdc58e38a3aa37ff138a85b1a148aa416c`.
 - Real four-player and three-player Mortal inference works. Runtime: `/workspace/mortal-runtime/venv/bin/python`. Three CPU cores, no GPU.
-- The downloaded Akagi v2 models are explicitly **small/weak reference models**, not the strong hosted Mortal models. They are not a strength guarantee. Source pinned to `shinkuan/Akagi@91cc2993e4e3682248d33d73d93afe055040e700`; every downloaded asset has a SHA256 in `assets.json`. Reproducible fetcher: `scripts/cpu/fetch-runtime.py`.
+- The initial downloaded Akagi v2 models are explicitly **small/weak reference models**, not the strong hosted Mortal models. They are not a strength guarantee. Source pinned to `shinkuan/Akagi@91cc2993e4e3682248d33d73d93afe055040e700`; every downloaded asset has a SHA256 in `assets.json`. Reproducible fetcher: `scripts/cpu/fetch-runtime.py`.
 - Akagi v2 carries **AGPL-3.0 + Commons Clause**; upstream Mortal is AGPL. Local experiments and backup only. The model binaries are outside the public site/repository; do not upload them as site assets. Before any public inference service or model distribution, resolve the actual model/code terms and required source/attribution.
 - Mortal provides discard/riichi action scores. Game legality, wins, north extraction, calls, and unsupported cases still use the existing rule engine/CPU. This is a hybrid, not complete custom-rule Mortal training.
 - Frozen Mortal backbone embeddings feed an experimentally trained DQN output layer. Teacher distillation uses legal expert CPU choices; a small clipped Monte Carlo chip-return loss and a base-model anchor accompany it. No backbone retraining or full GRP/self-play RL pipeline is claimed. Training loss is not playing strength.
@@ -27,6 +27,12 @@ Sanma matches the UI's **華4シュバ五等** preset:
 ```
 
 The early wrong-flower bootstrap run is quarantined under `training/archive/v0-wrong-sanma-flower-settings`; never pool it into evaluation. Study v1 validated the exact rules; v2 added a strict exposed-hand safety filter, model SHA tracking, and seed-cluster intervals. v1 final state is retained under each mode's `versions/`. Current trials use distinct trial/seed ranges after the source change. Their public decision traces remain useful training inputs.
+
+Study **v3** corrects winter one-die expectation (3.5 per payer), counts separate double-dice bonuses, prevents hypothetical future wins from inheriting heavenly-hand/first-turn flags, and estimates spring table-tulip continuation from a public unseen-tile pool. The expectation uses sampling without replacement under an exchangeable unseen-pool assumption; it never reads the actual wall. These are conditional estimates, not calibrated overall win EV.
+
+An optional larger four-player Mortal-family **C3** model is now available at `/workspace/mortal-runtime/c3/mortal.pth` (192 channels, 40 blocks). Source: https://github.com/Mateces/c3/releases/tag/v1.0 ; released checkpoint SHA256 `ce8ae0cc300c0d9f1833b76d5d73e7f423008338c8454c7a402543f5b6f913fe`. The release repository states MIT for weights/training code; runtime still uses Mortal/Akagi components under their own terms. The inference-only copy trims optimizer/auxiliary heads; its own hash is in runtime/assets.json. Re-fetch via `scripts/cpu/fetch-c3.py` in the torch venv. Initial four-player benchmark: 24 paired comparisons (48 games), 1,144 real inference calls, zero fallbacks, about 3.87 sec/candidate match, mean paired chip difference -0.79. This small sample does **not** establish improvement or inferiority. The four-player search now includes this model as a candidate, rather than silently replacing the incumbent.
+
+Embeddings from different backbones must not be pooled into head training: each trace has a backbone tag. The current output-head learner trains only the original 32x2 backbone and explicitly skips C3 192x40 traces. C3 traces are preserved for later separate training.
 
 ## Running jobs and data
 

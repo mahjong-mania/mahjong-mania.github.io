@@ -20,5 +20,8 @@
   "confirmationLeadMinutes": 30,
   "saveDecisionTracesEvery": 5,
   "note": "Frozen Mortal backbone, experimental DQN head distillation and chip-return regression, plus custom-rule correction search. No automatic production promotion.",
-  "trainingIntervalSeconds": 900
+  "trainingIntervalSeconds": 900,
+  "fourModelCandidates": [
+    "/workspace/mortal-runtime/c3/mortal.pth"
+  ]
 }
