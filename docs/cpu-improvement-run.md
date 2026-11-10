@@ -34,9 +34,13 @@ An optional larger four-player Mortal-family **C3** model is now available at `/
 
 Embeddings from different backbones must not be pooled into head training: each trace has a backbone tag. The current output-head learner trains only the original 32x2 backbone and explicitly skips C3 192x40 traces. C3 traces are preserved for later separate training.
 
+Study **v4** adds an optional `bonusEVWeight` correction: legal future winning-copy counts (including unused wildcard copies) weight the conditional chip payout by a hypergeometric own-draw chance. This assumes a uniform unseen pool and no intervening opponent win/call; it is a heuristic bonus potential, not a calibrated game EV. The existing v3 coefficients/choices are preserved when this weight is zero. Four-player riichi-bias search now also tests 2 and 4 after public decision traces showed fewer riichi choices than the expert teacher.
+
+Exploratory confirmation now compares **candidate, fixed baseline, and incumbent on the same wall seed/seat**. Baseline improvement must have a positive confidence lower bound and candidate-minus-incumbent must have a positive paired mean for exploratory promotion. The incumbent comparison and its interval are recorded; exploratory promotions remain subject to independent final evaluation. Search/final comparisons use two matches; confirmation may use three, so match count is no longer always twice the paired-comparison count. Study v3 state is archived under each mode's `versions/`; v4 uses a new trial/seed range.
+
 ## Running jobs and data
 
-Data root: `/workspace/mahjong-training`. Each mode has `state.json`, `runner.lock`, append-only `games.jsonl`, `trials.jsonl`, compressed `trace-*.json.gz`, `models/*.pth`, `models/training-state.pth`, and `models/latest.json`. Each completed paired comparison fsyncs its record and atomically replaces its state. Failed games are separate records; fail-fast after 20 failures.
+Data root: `/workspace/mahjong-training`. Each mode has `state.json`, `runner.lock`, append-only `games.jsonl`, `trials.jsonl`, compressed `trace-*.json.gz`, `models/*.pth`, `models/training-state.pth`, and `models/latest.json`. Immutable loaded policy source is kept under each mode/source/<SHA>.js. Each completed paired comparison fsyncs its record and atomically replaces its state. Failed games are separate records; fail-fast after 20 failures.
 
 ```bash
 node scripts/cpu/continuous.js four
@@ -51,6 +55,14 @@ The controller alternates correction search and independent confirmation. It ret
 Before the deadline's last 30 minutes, freeze the incumbent. During that window, run independent final evaluation with no further tuning; combine fixed-candidate final batches. Objective: **rank chips + bonus chips**. Intervals cluster all seats sharing a wall seed and use an approximate Student-t correction. Repeated exploratory confirmations are not final strength evidence. The final adoption flag also requires enough independent seeds, at least 98% actual inference coverage, and no game failures. Do not deploy from a positive screening score or falling training loss.
 
 `report.py` writes `/workspace/mahjong-training/report.json`; actual counts and errors are there. As of the initial setup, both modes have trained output-head snapshots, over 2,000 baseline/candidate matches have completed, and no independent final improvement is yet proven.
+
+## Trace-history correction (2026-11-10 18:15 UTC)
+
+Four-player trace capture previously retained a reference to a mutable per-round history array. **The actual model request was serialized immediately, and output-head training consumed only captured phi/q/teacher/terminal reward**, so inference and that training did not consume subsequent events. However, the saved `events` field could contain later public events/own draws and was unsuitable for event-based training or decision review.
+
+Capture now deep-copies the history at decision time and sets `eventHistoryCapturedAtDecision:true`. Legacy four-player files were copied intact to `four/legacy-history-traces/` and their unsafe `events` fields removed from the active trace files. Embeddings, action scores, teacher decisions and terminal rewards are preserved. `four/history-migration.json` maps original/sanitized SHA256 values; older training provenance hashes resolve to the quarantined originals. **Never use quarantined histories as decision-time inputs.** Sanma builds a fresh event array per request and is unaffected by this aliasing issue.
+
+`node scripts/cpu/test-traces.js` runs a complete four-player match, checks strictly increasing independent decision snapshots, and replays saved prefixes to reproduce their neural action scores. The migration did not change policy decisions or paired evaluation metrics; the four-player runner resumed the same v4 trial after safe shutdown.
 
 ## Fifteen-minute checkpoint and recovery
 
@@ -74,6 +86,8 @@ The browser bridge is opt-in. Static `mortal-config.js` disables inference so th
 ```bash
 /workspace/mortal-runtime/venv/bin/python scripts/cpu/serve.py --experimental
 # http://127.0.0.1:8790/index.html?setup=1 or /sanma.html
+# For agent tool execution, use a detached Popen with start_new_session=True;
+# foreground tool sessions can end with the conversation turn.
 ```
 
 Only expert/hard four-player or the target sanma preset uses it. Inference timeout/failure falls back to legal existing CPU decisions. Three-player async replies are invalidated on menu/pump/new-game changes. No public deployment has been performed.

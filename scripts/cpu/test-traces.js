@@ -1,0 +1,7 @@
+'use strict';
+const assert=require('node:assert/strict'),{play}=require('./evaluate'),{MortalClient}=require('./mortal-client');
+const client=new MortalClient();try{const r=play({mode:'four',seed:12345,seat:1,config:{mortalWeight:.25,shapeWeight:2,chipWeight:1,defenseWeight:1,riichiBias:2,bonusEVWeight:.05},client,trace:true}),lastLengths=new Map();let repeated=false;assert.ok(r.samples.length>=3);
+for(const s of r.samples){assert.equal(s.eventHistoryCapturedAtDecision,true);const last=s.events.at(-1);assert.equal(last.actor,s.seat);assert.ok(['tsumo','chi','pon'].includes(last.type));const key=JSON.stringify(s.events[0]);if(lastLengths.has(key)){assert.ok(s.events.length>lastLengths.get(key),'stored histories must not grow retroactively to the same final-round length');repeated=true;}lastLengths.set(key,s.events.length);}
+assert.ok(repeated,'fixture must exercise multiple decisions within a round');
+for(const s of r.samples.slice(0,3)){const replay=client.infer({mode:'four',seat:s.seat,events:s.events});assert.equal(replay.ok,true);assert.equal(replay.actualInference,true);assert.equal(replay.q.length,s.q.length);for(let i=0;i<s.q.length;i++){if(s.q[i]===null)assert.equal(replay.q[i],null);else assert.ok(Math.abs(replay.q[i]-s.q[i])<1e-5,'snapshot must reproduce decision-time model scores');}}
+console.log('PASS: immutable decision-time public histories and exact neural score reproduction.',r.samples.length,'decisions');}finally{client.close();}

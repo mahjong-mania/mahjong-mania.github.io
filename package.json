@@ -6,6 +6,7 @@
     "test:cpu": "node scripts/cpu/test-core.js",
     "cpu:four": "node scripts/cpu/continuous.js four",
     "cpu:sanma": "node scripts/cpu/continuous.js sanma",
-    "cpu:checkpoint": "python scripts/cpu/checkpoint.py --once"
+    "cpu:checkpoint": "python scripts/cpu/checkpoint.py --once",
+    "test:cpu:traces": "node scripts/cpu/test-traces.js"
   }
 }
