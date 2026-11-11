@@ -120,3 +120,22 @@ The managed runtime returned EPERM from Node synchronous child-process collectio
 ## Checkpoint compression (2026-11-10 22:05 UTC)
 
 To preserve free disk through the deadline, compressible content-addressed objects may now be stored as objects/<original-SHA256>.gz. Manifests continue to describe the original bytes/hash; current restore accepts either raw or gzip objects and checks the decompressed checksum. Existing objects were converted only after verifying both original and decompressed SHA256, preserving every archive. Use the current checkpoint.py for restoration, including old archives whose embedded restore script predates compression. Tests cover gzip restore, corrupt decoded content, legacy raw objects, and independent periodic saves. Keep the complete objects directory with archives. No training records or model snapshots are pruned.
+
+## Final outcome — 2026-11-11 10:00 JST
+
+Both controllers stopped at the deadline after completing their in-flight pair. Their locks are released; remaining PID entries are exited zombies, not running workers. The checkpoint watchdog also exited. The local verification server was stopped afterwards. No new experiments were started after the deadline, and no public deployment was performed.
+
+| Mode | All experimental matches | Independent final pairs / matches | Wall seeds | Mean chip difference | Approximate seed-cluster 95% CI | Actual inference | Decision |
+| --- | ---: | ---: | ---: | ---: | --- | ---: | --- |
+| Four hard | 28,966 | 1,114 / 2,228 | 279 | -1.6263 | [-4.0448, 0.7921] | 100% | Do not adopt |
+| Sanma 華4シュバ五等 | 39,770 | 1,382 / 2,764 | 461 | +3.5691 | [1.6656, 5.4725] | 99.9781% | Eligible experimental candidate |
+
+Objective is rank chips plus bonus chips against the fixed existing expert CPU. The total is 68,736 matches, including screening/confirmation from prior study versions; this total is not the independent final sample size. The final candidates stayed fixed across batches. An audit reproduced final metrics, found no overlap of final wall seeds with search/confirmation seeds, no duplicate seed-seat pairs, and checked all 499 saved final traces for the same mode-specific config. Audit and full data: `/workspace/mahjong-training/final-integrity-audit.json`, each mode's `final-evaluation.json`, `state.json` and `games.jsonl`.
+
+Sanma passes the predeclared final criterion in this engine, rule preset and opponent setup. This does not establish strength against other opponents or isolate the effect of neural training from custom-rule corrections. The selected sanma configuration uses a small-model learned head with Mortal weight 0.05, shape 0.5, chip 4, defense 0.5, riichi 0.5 and bonusEV 0.1. Its model SHA256 is `4817d9f067003c616a197b65e94e2c7290cbca4ab453589bfd6dd9e036d30193`. Four's chosen small-model hybrid failed final adoption; the C3 base and C3 learned heads were tested but were not selected. Public site remains unchanged.
+
+Timing limitation: a four-player training job started before 09:30 JST finished at 09:31:08.699. Its first final pair completed at 09:31:10.996; the final candidate used the unchanged small base and all final data followed training. Thus four-player final evaluation lasted about 29 minutes, rather than the full 30. Sanma's first final pair completed at 09:30:01.624. No final trace was used for training.
+
+Remaining limits: all-flower indicators use legal existing-CPU fallback; calls/wins and other unsupported actions remain hybrid; strong sanma/backbone retraining and broader opponent evaluation are unfinished. Current runtime uses local Python/native inference; no standalone browser neural model has been deployed. Conditional chip estimates remain heuristics. Historical process-launch errors were repaired and retained in logs.
+
+Principal changed files: `mortal-cpu.js`, `mortal-browser.js`, `mortal-config.js`, engine observation hooks in `engine.bundle.js`, asynchronous integration in `ui.js` / `sanma.js`, `scripts/cpu/` inference/evaluation/training/statistics/checkpoint/report utilities, `scripts/build-pwa.js`, generated HTML/cache versions, and this runbook. Core, model-overlay, checkpoint restore/corruption, trace replay, real browser inference/fallback, and existing UI/CPU/sanma smoke checks passed during the run. Full model/optimizer/seed/data/source snapshots are kept with their SHA-addressed objects; use current checkpoint.py to restore compressed objects. Environment deletion can still remove local data.
