@@ -66,3 +66,7 @@ Three.js 0.160.1（MIT）と cannon-es 0.20.0（MIT）をアプリ内に同梱�
 
 html2canvas 1.4.1（MIT）を同梱しています。実行時のCDNアクセスはありません。
 https://github.com/niklasvh/html2canvas / vendor/HTML2CANVAS-LICENSE.txt
+
+## Optional local sanma Mortal CPU
+
+The browser sanma CPU includes Mortal-derived WebAssembly and a local trained Akagi-derived model. See [the model/encoder notice](vendor/mortal-sanma/NOTICE.md), [Akagi license](vendor/mortal-sanma/AKAGI-LICENSE.txt), [encoder license](vendor/mortal-sanma/ENCODER-LICENSE.txt), and [corresponding encoder source](vendor/mortal-sanma/encoder-source.tar.gz). All inference runs locally; no inference API receives the hand.

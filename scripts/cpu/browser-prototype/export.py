@@ -26,7 +26,7 @@ _,engine=load('sanma',str(p));fixtures=[]
 def capture(_m,args):
  obs,mask=args
  with torch.no_grad():q=d(b(obs),mask)[0].tolist()
- fixtures.append({'seat':active['seat'],'events':active['events']+([{'type':'reach','actor':active['seat']}] if active['calls'] else []),'obs':obs[0].tolist(),'mask':mask[0].tolist(),'q':[v if v!=float('-inf') else None for v in q]});active['calls']+=1
+ fixtures.append({'atKanSelect':bool(obs[0,635,0]),'seat':active['seat'],'events':active['events']+([{'type':'reach','actor':active['seat']}] if active['calls'] else []),'obs':obs[0].tolist(),'mask':mask[0].tolist(),'q':[v if v!=float('-inf') else None for v in q]});active['calls']+=1
 # Capture actual native observations at the backbone input; obtain masks from its engine call.
 original=engine.base.react_batch
 def wrapped(obs,masks,invisible):
