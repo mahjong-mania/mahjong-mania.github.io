@@ -22,8 +22,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
   route=urllib.parse.urlsplit(self.path).path
   if route=='/api/mortal/status':return self.send_json(200,stats)
   if route=='/mortal-config.js':
-   enabled=a.experimental or all((pathlib.Path('/workspace/mahjong-training')/mode/'final-evaluation.json').exists() and json.loads((pathlib.Path('/workspace/mahjong-training')/mode/'final-evaluation.json').read_text()).get('adoptable') for mode in ['four','sanma'])
-   data={'endpoint':'/api/mortal' if enabled else None,**{mode:{k:v for k,v in policy(mode).items() if k!='modelPath'} for mode in ['four','sanma']}}
+   enabled_modes={mode:a.experimental or ((pathlib.Path('/workspace/mahjong-training')/mode/'final-evaluation.json').exists() and json.loads((pathlib.Path('/workspace/mahjong-training')/mode/'final-evaluation.json').read_text()).get('adoptable',False)) for mode in ['four','sanma']}
+   data={'endpoint':'/api/mortal' if any(enabled_modes.values()) else None,**{mode:{**{k:v for k,v in policy(mode).items() if k!='modelPath'},'enabled':enabled_modes[mode]} for mode in ['four','sanma']}}
    body=('globalThis.JewelMortalConfig='+json.dumps(data)+';').encode();self.send_response(200);self.send_header('Content-Type','application/javascript');self.send_header('Cache-Control','no-store');self.send_header('Content-Length',str(len(body)));self.end_headers();return self.wfile.write(body)
   return super().do_GET()
  def do_POST(self):
