@@ -26,3 +26,5 @@ cargo build --target wasm32-unknown-unknown --release -j 2
 /dev/shm/mahjong-wasm-build/wasm-bindgen-0.2.130-x86_64-unknown-linux-musl/wasm-bindgen --target web --out-dir /workspace/mahjong-browser-prototype/wasm-web target/wasm32-unknown-unknown/release/libriichi_wasm.wasm
 ```
 The memory-backed build environment is temporary. Preserve source revision and diagnostic patch, not the toolchain, in long-lived data.
+
+Channel diagnostics: `diagnose-encoder.py` aligns ten paired native/WASM-v5 observations for investigation. Legal masks match in those ten cases, but observation values differ in score/rank encoding and downstream evaluation features. Alignment includes repeated zero rows and is ambiguous; it is explicitly not an inference adapter. Full diagnostic output is `encoder-channel-diagnosis.json`. Exact input parity remains unresolved.
