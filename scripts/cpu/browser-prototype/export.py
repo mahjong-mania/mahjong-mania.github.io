@@ -26,7 +26,7 @@ _,engine=load('sanma',str(p));fixtures=[]
 def capture(_m,args):
  obs,mask=args
  with torch.no_grad():q=d(b(obs),mask)[0].tolist()
- fixtures.append({'obs':obs[0].tolist(),'mask':mask[0].tolist(),'q':[v if v!=float('-inf') else None for v in q]})
+ fixtures.append({'seat':active['seat'],'events':active['events']+([{'type':'reach','actor':active['seat']}] if active['calls'] else []),'obs':obs[0].tolist(),'mask':mask[0].tolist(),'q':[v if v!=float('-inf') else None for v in q]});active['calls']+=1
 # Capture actual native observations at the backbone input; obtain masks from its engine call.
 original=engine.base.react_batch
 def wrapped(obs,masks,invisible):
@@ -35,5 +35,7 @@ def wrapped(obs,masks,invisible):
 engine.base.react_batch=wrapped
 for f in sorted(pathlib.Path('/workspace/mahjong-training/sanma').glob('trace-final-*.json.gz'))[:args.games]:
  with gzip.open(f,'rt') as z:r=json.load(z)
- for sample in r['samples'][:args.decisions]:infer({'mode':'sanma','seat':sample['seat'],'events':sample['events'],'modelPath':str(p)})
+ for sample in r['samples'][:args.decisions]:
+  active={'seat':sample['seat'],'events':sample['events'],'calls':0}
+  infer({'mode':'sanma','seat':sample['seat'],'events':sample['events'],'modelPath':str(p)})
 (out/'fixtures.json').write_text(json.dumps(fixtures));print({'weightsBytes':len(weights),'fixtures':len(fixtures)})
