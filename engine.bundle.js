@@ -4403,9 +4403,11 @@ module.exports=function(E){
   }
   win(winners,loser,forced=null){const wins=[],settlements=[],before=this.points.slice(),beforeChips=this.chips.slice(),tobiCauses=new Map(),v=this.options.house;for(let i=0;i<winners.length;i++){
    const id=winners[i],ron=loser===null?null:this.last.tile+signedDirection(loser,id),result=forced?.[id]||this.score(id,this.hands[id],ron,{honba:i===0?this.honba:0,rob:this.phase==='rob'});if(!result)throw Error('和了形が不正です');
+   const pointStart=this.points.slice(),honbaCount=i===0?this.honba:0,stickPoints=i===0?this.sticks*1000:0;
    const responsible=v.pao&&result.damanguan?result.yaku.map(y=>this.pao[id][y.name]).find(p=>p!==undefined):undefined;
    if(responsible!==undefined){result.pao=responsible;if(loser===null){const total=[0,1,2].filter(p=>p!==id).reduce((n,p)=>n+(p===this.dealer?result.pay.dealer:result.pay.child),0);this.points[responsible]-=total;this.points[id]+=total;}else{const honba=(i===0?this.honba:0)*1000,half=(result.pay.ron-honba)/2;this.points[responsible]-=half+honba;this.points[loser]-=half;this.points[id]+=result.pay.ron;}}
    else if(loser===null){for(let other=0;other<3;other++)if(other!==id){const n=other===this.dealer?result.pay.dealer:result.pay.child;this.points[other]-=n;this.points[id]+=n;}}else{this.points[loser]-=result.pay.ron;this.points[id]+=result.pay.ron;}
+   const winPoints=this.points[id]-pointStart[id],honbaPoints=honbaCount*(loser===null?2000:v.honbaRon);result.pointReceipt={isDealer:id===this.dealer,honbaCount,honbaPoints,stickPoints,handPoints:winPoints-honbaPoints,winPoints,received:winPoints+stickPoints,transfers:[0,1,2].filter(p=>p!==id&&this.points[p]<pointStart[p]).map(p=>({from:p,to:id,amount:pointStart[p]-this.points[p]}))};
    const newlyBusted=[0,1,2].filter(p=>p!==id&&this.isBust(this.points[p])&&!tobiCauses.has(p));for(const p of newlyBusted)tobiCauses.set(p,id);
    if(i===0){this.points[id]+=this.sticks*1000;this.sticks=0;}
    settlements.push({id,result,received:this.points[id]-before[id]});
@@ -4490,7 +4492,8 @@ module.exports=function(E){
  function payments(han,yakuman,summer,dealer,tsumo,honba=0,house={}){const v=H.validate(house);let base,tier;
   if(yakuman){base=8000;tier=7;}else if(han>=14){base=8000;tier=7;}else if(han>=11){base=6000;tier=6;}else if(han>=8){base=4000;tier=5;}else if(han>=6){base=3000;tier=4;}else if(han>=4){base=2000;tier=3;}else {tier=Math.max(0,han-1);base=30*2**(han+2);}
   const tiers=[240,480,960,2000,3000,4000,6000,8000,10000];tier=Math.min(v.fiveMangan?8:7,tier+summer);if(summer)base=tiers[tier];if(yakuman&&Number(yakuman)>1)base*=Math.min(2,Number(yakuman));const round=n=>Math.ceil(n/1000)*1000;
-  return {tier,base,label:['1翻','2翻','3翻','満貫','跳満','倍満','三倍満',yakuman?'役満':'数え役満','5倍満'][tier],ron:round(base*(dealer?6:4))+honba*v.honbaRon,child:round(base*(dealer?3:1.5))+honba*1000,dealer:round(base*(dealer?3:2.5))+honba*1000};
+  const split=[[1000,1000],[1000,1000],[1000,3000],[3000,5000],[4000,8000],[6000,10000],[8000,16000],[12000,20000],[15000,25000]][tier],multiple=yakuman&&Number(yakuman)>1?Math.min(2,Number(yakuman)):1;
+  return {tier,base,label:['1翻','2翻','3翻','満貫','跳満','倍満','三倍満',yakuman?'役満':'数え役満','5倍満'][tier],ron:round(base*(dealer?6:4))+honba*v.honbaRon,child:(dealer?round(base*3):split[0]*multiple)+honba*1000,dealer:(dealer?round(base*3):split[1]*multiple)+honba*1000};
  }
  function score({hand,ron=null,seat=1,rule:gameRule=rule(),indicators=[],ura=[],north=0,flowers=[],flowerRules=DEFAULT_FLOWERS,ippatsu=false,rinshan=false,last=false,honba=0,qianggang=false,openRiichi=false,tianhu=0,house={},roundWind=0,discardedDora=false,openPush=false}){
   // Hidden indicators affect a hand only after a closed riichi win.
