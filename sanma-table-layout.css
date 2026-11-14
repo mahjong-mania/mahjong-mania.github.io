@@ -40,3 +40,12 @@
 .sanma-classic-board .player-2{top:14%;height:4%}
 .sanma-classic-board .player-0{height:3%}
 .sanma-classic-board .sanma-opponent-strip.top:has(:not(.back)){left:34%;max-width:64%}
+
+/* Keep fourteen fixed tile slots; drawing/calling must never resize the hand. */
+body.sanma-classic #sanma-hand-panel,.net-sanma-own{container-type:inline-size}
+body.sanma-classic #sanma-hand,.net-sanma-own .net-hand{--hand-slot:min(48px,calc((100cqw - 34px)/14));display:flex;flex-wrap:nowrap;justify-content:flex-start;align-items:flex-start;gap:2px;min-height:calc(var(--hand-slot)*1.42)}
+body.sanma-classic #sanma-hand>.stile,.net-sanma-own .net-hand>button{--size:var(--hand-slot);flex:0 0 var(--hand-slot);width:var(--hand-slot);max-width:none;min-width:0;height:calc(var(--hand-slot)*1.42);min-height:0;aspect-ratio:1/1.42;margin-top:0;margin-bottom:0}
+body.sanma-classic #sanma-hand>.draw{margin-left:7px}
+.net-sanma-own .net-hand>button{padding:0;margin:0;border:0}
+.net-sanma-own .net-hand>button .net-tile{width:100%;height:100%;max-width:none;min-width:0}
+.net-sanma-own .net-hand .net-tile small{font-size:max(5px,calc(var(--hand-slot)*.19))}
