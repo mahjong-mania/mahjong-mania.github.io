@@ -6,6 +6,7 @@ const ReactionGate=require("offline/reaction-gate.js");
 const M = require("vendor/majiang-core/lib/index.js");
 const J=require("offline/jewels.js");
 const CustomFour=require("offline/custom-four.js");
+const ResultRules=require("offline/result-rules.js");
 const Replay=require("offline/replay.js")({M,J});
 const Physical=require("offline/physical.js")(M);
 const PAYOUT = [50,25,-25,-50];
@@ -154,15 +155,15 @@ if(!['hule','jieju'].includes(type)&&this._openRiichi?.some(Boolean)){const expo
  jieju() {if(this.cold&&(this._rule.nekkyou||this._rule.customFour?.coldChips)&&!this._coldAwarded){this._coldAwarded=true;const winner=this.model.defen.indexOf(Math.max(...this.model.defen));transfer(this.chips,winner,null,this._rule.customFour?.coldChips??3);}this._paipu.nekkyou=!!this._rule.nekkyou;if(this._rule.customFour)this._paipu.customFour=CustomFour.validate(this._rule.customFour);this._paipu.bonusChips=this.chips.slice();this._paipu.cold=!!this.cold;return super.jieju();}
 }
 function settle(paipu) {return paipu.defen.map((points,id)=>({id,points,rank:paipu.rank[id],rankChips:(paipu.customFour?.rankChips||(paipu.nekkyou?[15,5,-5,-15]:PAYOUT))[paipu.rank[id]-1],bonusChips:paipu.bonusChips?.[id]||0}));}
-function saveResult(storage,id,results) {
+function saveResult(storage,id,results,rule) {
  const key='jewel-offline-results-v1'; let record;
  try {record=JSON.parse(storage.getItem(key)||'{"games":[],"totals":{}}');}catch{throw Error('保存データを読み取れません。既存データは変更していません。');}
  if(!record||!Array.isArray(record.games)||!record.totals)throw Error('保存データの形式が不正です');
  if(record.games.some(g=>g.id===id))return record;
  for(const r of results){const t=record.totals[r.id]||{rankChips:0,bonusChips:0,games:0};record.totals[r.id]={rankChips:t.rankChips+r.rankChips,bonusChips:t.bonusChips+r.bonusChips,games:t.games+1};}
- record.games.push({id,at:new Date().toISOString(),results});storage.setItem(key,JSON.stringify(record));return record;
+ record.games.push({id,at:new Date().toISOString(),results,ruleMeta:ResultRules.four(rule)});storage.setItem(key,JSON.stringify(record));return record;
 }
-module.exports={M,J,CustomFour,CpuProfiles,Physical,UNLOCK_YAKU,indicatorNumber,garnetValue,rule,actions,cpu,openTargets,Player,Game,bonus,transfer,settle,saveResult};
+module.exports={M,J,CustomFour,ResultRules,CpuProfiles,Physical,UNLOCK_YAKU,indicatorNumber,garnetValue,rule,actions,cpu,openTargets,Player,Game,bonus,transfer,settle,saveResult};
 module.exports.Replay=require("offline/replay.js")(module.exports);
 module.exports.Sanma=require("offline/sanma/index.js")(module.exports);
 
@@ -3997,6 +3998,99 @@ function example(){return validate({version:1,name:'DAN風・牌構成',tiles:['
 module.exports={validate,gems,example,BASES,MARKERS};
 
 },
+"offline/result-rules.js":function(module,exports,require){
+'use strict';
+const H=require("offline/sanma/variants.js");
+const name=value=>typeof value==='string'?value.trim().slice(0,80):'';
+const meta=(game,type,ruleName='')=>({version:1,game,type,...(type==='custom'?{name:ruleName}:{})});
+function four(rule){
+ if(!rule||typeof rule!=='object')return meta('four','unknown');
+ if(name(rule.customFour?.name))return meta('four','custom',name(rule.customFour.name));
+ if(rule.nekkyou===undefined&&rule.gemTiles&&Array.isArray(rule.gemSelection))return meta('four','normal');
+ if(typeof rule.nekkyou==='boolean')return meta('four',rule.nekkyou?'hard':'normal');
+ return meta('four','unknown');
+}
+function sanma(options){
+ if(!options||typeof options!=='object')return meta('sanma','unknown');
+ const ruleName=name(options.customRuleName||options.customRule?.name||options.ruleName);
+ if(ruleName)return meta('sanma','custom',ruleName);
+ if(options.preset==='dan')return meta('sanma','custom','DAN');
+ let house;try{house=H.validate(options.house);}catch{return meta('sanma','unknown');}
+ const flowers={spring:'linked',summer:'rank',autumn:'dora',winter:'alice',...options.flowerRules},pocchi=options.pocchiTypes??(options.whitePocchi===false?[]:[options.pocchiType||'normal']);
+ const common=(options.flowerCopies??1)===1&&!options.pocchiIppatsuDice&&Array.isArray(pocchi)&&pocchi.length===1&&pocchi[0]==='normal';
+ const same=(a,b)=>Object.entries(b).every(([k,v])=>a[k]===v);
+ if(common&&same(house,H.DEFAULTS)&&same(flowers,{spring:'linked',summer:'rank',autumn:'dora',winter:'alice'}))return meta('sanma','normal');
+ if(common&&same(house,H.PRESET)&&same(flowers,{spring:'tulip',summer:'rank',autumn:'double',winter:'dice'}))return meta('sanma','jewel');
+ return meta('sanma','custom','');
+}
+function validate(value,game){
+ if(!value||value.version!==1||value.game!==game||!['normal','hard','jewel','custom','unknown'].includes(value.type)||game==='four'&&value.type==='jewel'||game==='sanma'&&value.type==='hard')return null;
+ return meta(game,value.type,name(value.name));
+}
+const key=r=>r.type==='custom'?'custom:'+r.name:r.type;
+function label(r){return r.type==='custom'?'カスタムルール（'+(r.name||'名称未設定')+'）':r.type==='unknown'?'ルール不明（旧記録）':r.game==='four'?(r.type==='hard'?'宝石（ハードモード）':'宝石（通常）'):(r.type==='jewel'?'五等サンマ（宝石麻雀ルール）':'五等サンマ（通常）');}
+module.exports={four,sanma,validate,key,label};
+
+},
+"offline/sanma/variants.js":function(module,exports,require){
+'use strict';
+// Every field is independently selectable; omitted fields retain the original rules.
+const FIELDS={
+ fiveSet:{label:'5筒・5索の構成',values:['original','mixed'],labels:['金2・赤2（従来）','黒2・赤1・金1（赤1枚・金2枚祝儀）'],value:'original'},
+ rankOnly:{label:'完全順位戦：点棒の持ち点差を精算しない',value:false},
+ fixedUma:{label:'順位チップを +20／0／−20 にする',value:false},
+ southExtension:{label:'東風終了時トップ4万点未満なら南入・南場サドンデス',value:false},
+ agariYame:{label:'オーラスの親トップ和了で強制終了',value:false},
+ bustAtZero:{label:'0点ちょうどでもトビにする',value:true},
+ honbaRon:{label:'ロンの1本場',values:[1000,2000],labels:['1,000点（ツモ各1,000点）','2,000点（ツモ各1,000点）'],value:1000},
+ notenPool:{label:'ノーテン罰符（場）',values:[2000,4000],labels:['2,000点','4,000点'],value:2000},
+ northExtended:{label:'手牌の北を字一色・萬子混一色でも使用可／北は打牌不可',value:false},
+ nukiRon:{label:'北抜きへの役満ロン（自分が北を抜いていると不可）',value:false},
+ flowerUra:{label:'裏表示の華もリーチ和了者に効果',value:false},
+ tableTulip:{label:'春チューリップ：萬子2・華3、1段のみ、保証なし',value:false},
+ autumnColoredOnly:{label:'秋の倍増は赤金自体の翻数・祝儀だけ',value:false},
+ ippatsuChips:{label:'通常の一発祝儀',values:[0,1],labels:['なし','1枚'],value:1},
+ uraChips:{label:'裏ドラ1翻につき祝儀1枚',value:true},
+ instantIncludesIppatsu:{label:'即ポッチ3枚に一発の祝儀を含む',value:false},
+ instantPocchi:{label:'即ポッチは祝儀3枚＋出目金2個／通常白ポッチは出目金なし',value:false},
+ fourFlowerOwn:{label:'4華出目金は4種類すべて自分で抜いた場合だけ',value:false},
+ fourNorthEight:{label:'抜き北4枚は合計8翻＋祝儀4枚＋出目金',value:false},
+ stackFourSets:{label:'4華4北の100枚オールを他の祝儀に加算',value:false},
+ heavenFifty:{label:'天和・地和は追加50枚オール',value:false},
+ tableTobi:{label:'トビ賞3枚（トバした和了者へ）',value:false},
+ tobiDouble:{label:'トビが発生した局の和了祝儀を2倍（ダブロンは両者）',value:false},
+ shuba:{label:'シュバリーチ：各家1ゲーム1回（5,000点／オープン複合6,000点）',value:false},
+ lowPointRiichi:{label:'持ち点不足でリーチ可（通常0点／オープン1,000点／シュバ4,000点／オープンシュバ6,000点から）',value:true},
+ openCost:{label:'オープンリーチ供託',values:[1000,2000],labels:['1,000点','2,000点'],value:1000},
+ tableRiichi:{label:'フリテン通常リーチ可・オープンは2軒目まで',value:false},
+ riichiPass:{label:'リーチ後のロン見逃しを許可（ポッチツモは強制）',value:false},
+ lastRiichi:{label:'ツモ番のないリーチを許可',value:true},
+ openPushYakuman:{label:'オープンへの非リーチ者の放銃は役満（リーチ後は通常精算）',value:false},
+ fiveMangan:{label:'夏の5倍満を許可',value:true},
+ excessChips:{label:'数え役満の15翻目以降を1翻1枚の祝儀に加算',value:false},
+ doubleYakuman:{label:'異なる本役満の複合を最大ダブルにする',value:false},
+ pao:{label:'大三元・大四喜のパオを採用',value:true},
+ kokushiRobClosed:{label:'国士無双の暗槓ロンを許可',value:false},
+ unlimitedKan:{label:'槓回数の上限なし（残り1枚以下は槓不可）',value:false},
+ closedKanHan:{label:'暗槓1組につき和了時1翻加算',value:false},
+ nagashi:{label:'流し役満を採用（ポン・カン・リーチ・鳴かれで不成立）',value:false},
+ localTriplets:{label:'三風2翻・三連刻2翻・四連刻役満',value:false},
+ openChantaReduction:{label:'チャンタ4→2翻・純チャン6→4翻の食い下がり',value:false},
+ quadPairs:{label:'4・8・12枚使い七対子を4翻・8翻・本役満にする',value:false},
+ lastDice:{label:'海底・河底の和了で出目金',value:true},
+ winterRonPayer:{label:'ロン時の冬サイコロ祝儀の支払元',value:'discarder',values:['all','discarder'],labels:['全員（和了者以外）','放銃者のみ']},
+ ronDicePayer:{label:'ロン時のサイコロ祝儀の支払元',value:'all',values:['all','discarder'],labels:['全員（和了者以外）','放銃者のみ']},
+ separateDice:{label:'成立した出目金の条件ごとに振る（複合役満は2回）',value:false},
+ allStar:{label:'門前で山の赤金5をすべて使用して出目金',value:false},
+ smallWheel:{label:'小車輪：混一色七対子を6翻にする',value:false},
+ riichiOnly:{label:'リーチのみ・リーヅモのみ役満（条件付き）',value:false},
+};
+const DEFAULTS=Object.fromEntries(Object.entries(FIELDS).map(([k,v])=>[k,v.value]));
+const PRESET={...DEFAULTS,fiveSet:'mixed',fixedUma:true,rankOnly:true,southExtension:true,agariYame:true,bustAtZero:false,honbaRon:2000,notenPool:4000,northExtended:true,nukiRon:true,flowerUra:true,tableTulip:true,autumnColoredOnly:true,instantPocchi:true,instantIncludesIppatsu:true,fourFlowerOwn:true,fourNorthEight:true,stackFourSets:true,heavenFifty:true,tableTobi:true,tobiDouble:true,shuba:true,openCost:2000,tableRiichi:true,riichiPass:true,lastRiichi:false,openPushYakuman:true,fiveMangan:false,excessChips:true,doubleYakuman:true,pao:false,kokushiRobClosed:true,unlimitedKan:true,closedKanHan:true,nagashi:true,localTriplets:true,openChantaReduction:true,quadPairs:true,separateDice:true,lastDice:false,allStar:true,smallWheel:true,riichiOnly:true};
+function validate(value={}){if(!value||typeof value!=='object'||Array.isArray(value))throw Error('追加ルールが不正です');const result={...DEFAULTS};for(const [k,v]of Object.entries(value)){const f=FIELDS[k];if(!f)throw Error('未対応の追加ルールです：'+k);if(f.pending&&v===true)throw Error(f.label+'は条件確認中です');if(f.values?!f.values.includes(v):typeof v!=='boolean')throw Error(f.label+'の設定が不正です');result[k]=v;}if(value.tobiDouble===undefined&&value.tableTobi)result.tobiDouble=true;return result;}
+module.exports={FIELDS,DEFAULTS,PRESET,validate};
+
+},
 "offline/replay.js":function(module,exports,require){
 'use strict';
 module.exports=function(E){
@@ -4479,7 +4573,7 @@ module.exports=function(E){
   const base=S.shanten(game.hands[id]);for(const a of options.filter(a=>a.reply.pon)){const h=game.hands[id].clone().fulou(a.reply.pon),s=S.normal(a.reply.pon);if(s[0]!=='z'||![1,5,6,7,(id-game.dealer+3)%3+1].includes(+s[1]))continue;for(const t of h.get_dapai()||[])if(S.shanten(h.clone().dapai(t))<base)return a.reply;}
   return options.find(a=>a.reply.pass)?.reply||options[0].reply;
  }
- function saveResult(storage,game){const key='houseki-sanma-results-v1';let record;try{record=JSON.parse(storage.getItem(key)||'{"games":[],"totals":{}}');}catch{throw Error('保存データを読み込めません。上書きはしません。');}if(!record||!Array.isArray(record.games)||!record.totals)throw Error('保存データが不正です');if(!game.results)throw Error('対局はまだ終了していません');if(record.games.some(g=>g.id===game.id))return record;for(const r of game.results){const t=record.totals[r.id]||{games:0,rankChips:0,bonusChips:0};record.totals[r.id]={games:t.games+1,rankChips:t.rankChips+r.rankChips,bonusChips:t.bonusChips+r.bonusChips};}record.games.push({id:game.id,at:new Date().toISOString(),results:game.results,options:{flowerCopies:game.options.flowerCopies,flowerRules:game.options.flowerRules,pocchiTypes:game.options.pocchiTypes,pocchiIppatsuDice:game.options.pocchiIppatsuDice,house:game.options.house}});storage.setItem(key,JSON.stringify(record));return record;}
+ function saveResult(storage,game){const key='houseki-sanma-results-v1';let record;try{record=JSON.parse(storage.getItem(key)||'{"games":[],"totals":{}}');}catch{throw Error('保存データを読み込めません。上書きはしません。');}if(!record||!Array.isArray(record.games)||!record.totals)throw Error('保存データが不正です');if(!game.results)throw Error('対局はまだ終了していません');if(record.games.some(g=>g.id===game.id))return record;for(const r of game.results){const t=record.totals[r.id]||{games:0,rankChips:0,bonusChips:0};record.totals[r.id]={games:t.games+1,rankChips:t.rankChips+r.rankChips,bonusChips:t.bonusChips+r.bonusChips};}record.games.push({id:game.id,at:new Date().toISOString(),results:game.results,ruleMeta:E.ResultRules.sanma(game.replayOptions||game.options),options:{customRuleName:game.options.customRuleName||'',flowerCopies:game.options.flowerCopies,flowerRules:game.options.flowerRules,pocchiTypes:game.options.pocchiTypes,pocchiIppatsuDice:game.options.pocchiIppatsuDice,house:game.options.house}});storage.setItem(key,JSON.stringify(record));return record;}
  return {...S,Game,cpu,saveResult};
 };
 
@@ -4492,7 +4586,7 @@ module.exports=function(E){
  const POCCHI={normal:'z0',reverse:'zA',double:'zB',reverseDouble:'zC'},POCCHI_NAMES={normal:'白ポッチ',reverse:'逆ポッチ',double:'倍ポッチ',reverseDouble:'逆倍ポッチ'};
  const DEFAULT_FLOWERS={spring:'linked',summer:'rank',autumn:'dora',winter:'alice'};
  const VARIANTS={spring:['linked','fixed','tulip','off'],summer:['rank','han','off'],autumn:['dora','double','chips','off'],winter:['alice','tulip','dice','chips','off']};
- function options(extra={}){if(extra.cpuLevel!==undefined)E.CpuProfiles.validate(extra.cpuLevel);const flowerRules={...DEFAULT_FLOWERS,...extra.flowerRules};for(const [k,values]of Object.entries(VARIANTS))if(!values.includes(flowerRules[k]))throw Error('華の設定が不正です');if(extra.flowerCopies!==undefined&&![1,2].includes(extra.flowerCopies))throw Error('華は4枚または8枚です');if(extra.pocchiType&&!['normal','reverse','double','reverseDouble'].includes(extra.pocchiType))throw Error('ポッチの設定が不正です');const pocchiTypes=extra.pocchiTypes??(extra.whitePocchi===false?[]:[extra.pocchiType||'normal']);if(!Array.isArray(pocchiTypes)||pocchiTypes.length>4||new Set(pocchiTypes).size!==pocchiTypes.length||pocchiTypes.some(t=>!POCCHI[t]))throw Error('ポッチは各種類1枚・合計4枚までです');return {house:H.validate(extra.house),pocchiTypes,flowerCopies:1,whitePocchi:true,pocchiType:'normal',pocchiIppatsuDice:false,...extra,house:H.validate(extra.house),flowerRules};}
+ function options(extra={}){if(extra.customRuleName!==undefined&&(typeof extra.customRuleName!=='string'||[...extra.customRuleName.trim()].length>40||/[\u0000-\u001f\u007f]/.test(extra.customRuleName)))throw Error('カスタムルール名は40文字以内です');if(extra.cpuLevel!==undefined)E.CpuProfiles.validate(extra.cpuLevel);const flowerRules={...DEFAULT_FLOWERS,...extra.flowerRules};for(const [k,values]of Object.entries(VARIANTS))if(!values.includes(flowerRules[k]))throw Error('華の設定が不正です');if(extra.flowerCopies!==undefined&&![1,2].includes(extra.flowerCopies))throw Error('華は4枚または8枚です');if(extra.pocchiType&&!['normal','reverse','double','reverseDouble'].includes(extra.pocchiType))throw Error('ポッチの設定が不正です');const pocchiTypes=extra.pocchiTypes??(extra.whitePocchi===false?[]:[extra.pocchiType||'normal']);if(!Array.isArray(pocchiTypes)||pocchiTypes.length>4||new Set(pocchiTypes).size!==pocchiTypes.length||pocchiTypes.some(t=>!POCCHI[t]))throw Error('ポッチは各種類1枚・合計4枚までです');return {house:H.validate(extra.house),pocchiTypes,flowerCopies:1,whitePocchi:true,pocchiType:'normal',pocchiIppatsuDice:false,...extra,house:H.validate(extra.house),flowerRules};}
  function rule(house={}){const v=H.validate(house);const gemTiles={};for(const s of ['p','s'])for(const [ch,color,chips]of [['0','金',v.fiveSet==='mixed'?2:1],['A','赤',v.fiveSet==='mixed'?1:0]])gemTiles[s+ch]={id:'sanma-'+s+ch,name:color+'5'+s,base:s+'5',han:1,effect:'fixed',chips,pocchi:false};gemTiles.z0={id:'topaz',name:'白ポッチ',base:'z5',han:0,effect:'fixed',chips:0,pocchi:true};return M.rule({'カンドラ後乗せ':false,'配給原点':35000,'赤牌':{m:0,p:0,s:0},'切り上げ満貫あり':true,'役満の複合あり':v.doubleYakuman,'ダブル役満あり':false,'数え役満あり':true,'場風牌':[1],'ツモ番なしリーチあり':v.lastRiichi,'リーチ後暗槓許可レベル':2,gemTiles,gemSelection:[],jewelBonus:false,fullJewel:false});}
  function makeWall(o,rng=Math.random){const v=H.validate(o.house),a=[];for(const s of ['m','p','s','z'])for(let n=1;n<=(s==='z'?7:9);n++){if(s==='m'&&n!==1&&n!==9)continue;for(let i=0;i<4;i++)a.push(s+((s==='p'||s==='s')&&n===5?(v.fiveSet==='mixed'?(i<2?'5':i===2?'A':'0'):(i<2?'0':'A')):s==='z'&&n===5&&i<o.pocchiTypes.length?POCCHI[o.pocchiTypes[i]][1]:n));}for(let f=1;f<=4;f++)for(let i=0;i<o.flowerCopies;i++)a.push('f'+f);for(let i=a.length-1;i>0;i--){const j=Math.floor(rng()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
  function counts(hand){return J.rawTiles(hand.toString()).map(normal);}
@@ -4552,71 +4646,12 @@ module.exports=function(E){
   while(index+width<=wall.length){const group=wall.slice(index,index+width);index+=width;const hits=group.reduce((n,t)=>n+hit(t),0);reveals.push({tiles:group,hits});chips+=hits*mult;if(!hits){if(safety)safety--;else break;}}
   return {chips,reveals,mode:tulip?'チューリップ':'アリス',multiplier:mult};
  }
- function tableTulip({tiles,flowers=[],indicators=[],wall=[],north=0}){const owned=tiles.concat(Array(north).fill('z4'),flowers,indicators.filter(t=>t[0]==='f')),reveals=[];let chips=0;for(const p of wall){let hits=0;if(p[0]==='f')hits=owned.filter(t=>t[0]==='f').length*3;else{const r=alice({tiles:owned.filter(t=>t[0]!=='f'),wall:[p],mode:'tulip',winter:1});hits=r.chips*(p[0]==='m'?2:1);}reveals.push({tiles:[p],hits});chips+=hits;if(!hits)break;}return {chips,reveals,mode:'チューリップ（身内）',multiplier:1};}
+ function tableTulip({tiles,flowers=[],indicators=[],wall=[],north=0}){const owned=tiles.concat(Array(north).fill('z4'),flowers,indicators.filter(t=>t[0]==='f')),reveals=[];let chips=0;for(const p of wall){let hits=0;if(p[0]==='f')hits=owned.filter(t=>t[0]==='f').length*3;else{const r=alice({tiles:owned.filter(t=>t[0]!=='f'),wall:[p],mode:'tulip',winter:1});hits=r.chips*(p[0]==='m'?2:1);}reveals.push({tiles:[p],hits});chips+=hits;if(!hits)break;}return {chips,reveals,mode:'チューリップ（宝石麻雀ルール）',multiplier:1};}
  function oneDie(rng=Math.random){const n=1+Math.floor(rng()*6);return {chips:n,rolls:[[n]]};}
  function twoDice(rng=Math.random){return dice(rng);}
  function dice(rng=Math.random){const rolls=[];let chips=0;for(let i=0;i<100;i++){const a=1+Math.floor(rng()*6),b=1+Math.floor(rng()*6),n=a===1&&b===1?20:a+b;rolls.push([a,b]);chips+=n;if(a!==b)break;}return {chips,rolls};}
  return {H,tableTulip,FLOWERS,POCCHI,POCCHI_NAMES,DEFAULT_FLOWERS,VARIANTS,options,rule,makeWall,normal,counts,shanten,waits,sevenPairs,springDelta,effects,payments,score,alice,dice,oneDie,twoDice,dora};
 };
-
-},
-"offline/sanma/variants.js":function(module,exports,require){
-'use strict';
-// Every field is independently selectable; omitted fields retain the original rules.
-const FIELDS={
- fiveSet:{label:'5筒・5索の構成',values:['original','mixed'],labels:['金2・赤2（従来）','黒2・赤1・金1（赤1枚・金2枚祝儀）'],value:'original'},
- rankOnly:{label:'完全順位戦：点棒の持ち点差を精算しない',value:false},
- fixedUma:{label:'順位チップを +20／0／−20 にする',value:false},
- southExtension:{label:'東風終了時トップ4万点未満なら南入・南場サドンデス',value:false},
- agariYame:{label:'オーラスの親トップ和了で強制終了',value:false},
- bustAtZero:{label:'0点ちょうどでもトビにする',value:true},
- honbaRon:{label:'ロンの1本場',values:[1000,2000],labels:['1,000点（ツモ各1,000点）','2,000点（ツモ各1,000点）'],value:1000},
- notenPool:{label:'ノーテン罰符（場）',values:[2000,4000],labels:['2,000点','4,000点'],value:2000},
- northExtended:{label:'手牌の北を字一色・萬子混一色でも使用可／北は打牌不可',value:false},
- nukiRon:{label:'北抜きへの役満ロン（自分が北を抜いていると不可）',value:false},
- flowerUra:{label:'裏表示の華もリーチ和了者に効果',value:false},
- tableTulip:{label:'春チューリップ：萬子2・華3、1段のみ、保証なし',value:false},
- autumnColoredOnly:{label:'秋の倍増は赤金自体の翻数・祝儀だけ',value:false},
- ippatsuChips:{label:'通常の一発祝儀',values:[0,1],labels:['なし','1枚'],value:1},
- uraChips:{label:'裏ドラ1翻につき祝儀1枚',value:true},
- instantIncludesIppatsu:{label:'即ポッチ3枚に一発の祝儀を含む',value:false},
- instantPocchi:{label:'即ポッチは祝儀3枚＋出目金2個／通常白ポッチは出目金なし',value:false},
- fourFlowerOwn:{label:'4華出目金は4種類すべて自分で抜いた場合だけ',value:false},
- fourNorthEight:{label:'抜き北4枚は合計8翻＋祝儀4枚＋出目金',value:false},
- stackFourSets:{label:'4華4北の100枚オールを他の祝儀に加算',value:false},
- heavenFifty:{label:'天和・地和は追加50枚オール',value:false},
- tableTobi:{label:'トビ賞3枚（トバした和了者へ）',value:false},
- tobiDouble:{label:'トビが発生した局の和了祝儀を2倍（ダブロンは両者）',value:false},
- shuba:{label:'シュバリーチ：各家1ゲーム1回（5,000点／オープン複合6,000点）',value:false},
- lowPointRiichi:{label:'持ち点不足でリーチ可（通常0点／オープン1,000点／シュバ4,000点／オープンシュバ6,000点から）',value:true},
- openCost:{label:'オープンリーチ供託',values:[1000,2000],labels:['1,000点','2,000点'],value:1000},
- tableRiichi:{label:'フリテン通常リーチ可・オープンは2軒目まで',value:false},
- riichiPass:{label:'リーチ後のロン見逃しを許可（ポッチツモは強制）',value:false},
- lastRiichi:{label:'ツモ番のないリーチを許可',value:true},
- openPushYakuman:{label:'オープンへの非リーチ者の放銃は役満（リーチ後は通常精算）',value:false},
- fiveMangan:{label:'夏の5倍満を許可',value:true},
- excessChips:{label:'数え役満の15翻目以降を1翻1枚の祝儀に加算',value:false},
- doubleYakuman:{label:'異なる本役満の複合を最大ダブルにする',value:false},
- pao:{label:'大三元・大四喜のパオを採用',value:true},
- kokushiRobClosed:{label:'国士無双の暗槓ロンを許可',value:false},
- unlimitedKan:{label:'槓回数の上限なし（残り1枚以下は槓不可）',value:false},
- closedKanHan:{label:'暗槓1組につき和了時1翻加算',value:false},
- nagashi:{label:'流し役満を採用（ポン・カン・リーチ・鳴かれで不成立）',value:false},
- localTriplets:{label:'三風2翻・三連刻2翻・四連刻役満',value:false},
- openChantaReduction:{label:'チャンタ4→2翻・純チャン6→4翻の食い下がり',value:false},
- quadPairs:{label:'4・8・12枚使い七対子を4翻・8翻・本役満にする',value:false},
- lastDice:{label:'海底・河底の和了で出目金',value:true},
- winterRonPayer:{label:'ロン時の冬サイコロ祝儀の支払元',value:'discarder',values:['all','discarder'],labels:['全員（和了者以外）','放銃者のみ']},
- ronDicePayer:{label:'ロン時のサイコロ祝儀の支払元',value:'all',values:['all','discarder'],labels:['全員（和了者以外）','放銃者のみ']},
- separateDice:{label:'成立した出目金の条件ごとに振る（複合役満は2回）',value:false},
- allStar:{label:'門前で山の赤金5をすべて使用して出目金',value:false},
- smallWheel:{label:'小車輪：混一色七対子を6翻にする',value:false},
- riichiOnly:{label:'リーチのみ・リーヅモのみ役満（条件付き）',value:false},
-};
-const DEFAULTS=Object.fromEntries(Object.entries(FIELDS).map(([k,v])=>[k,v.value]));
-const PRESET={...DEFAULTS,fiveSet:'mixed',fixedUma:true,rankOnly:true,southExtension:true,agariYame:true,bustAtZero:false,honbaRon:2000,notenPool:4000,northExtended:true,nukiRon:true,flowerUra:true,tableTulip:true,autumnColoredOnly:true,instantPocchi:true,instantIncludesIppatsu:true,fourFlowerOwn:true,fourNorthEight:true,stackFourSets:true,heavenFifty:true,tableTobi:true,tobiDouble:true,shuba:true,openCost:2000,tableRiichi:true,riichiPass:true,lastRiichi:false,openPushYakuman:true,fiveMangan:false,excessChips:true,doubleYakuman:true,pao:false,kokushiRobClosed:true,unlimitedKan:true,closedKanHan:true,nagashi:true,localTriplets:true,openChantaReduction:true,quadPairs:true,separateDice:true,lastDice:false,allStar:true,smallWheel:true,riichiOnly:true};
-function validate(value={}){if(!value||typeof value!=='object'||Array.isArray(value))throw Error('追加ルールが不正です');const result={...DEFAULTS};for(const [k,v]of Object.entries(value)){const f=FIELDS[k];if(!f)throw Error('未対応の追加ルールです：'+k);if(f.pending&&v===true)throw Error(f.label+'は条件確認中です');if(f.values?!f.values.includes(v):typeof v!=='boolean')throw Error(f.label+'の設定が不正です');result[k]=v;}if(value.tobiDouble===undefined&&value.tableTobi)result.tobiDouble=true;return result;}
-module.exports={FIELDS,DEFAULTS,PRESET,validate};
 
 },
 "online/rooms.js":function(module,exports,require){
@@ -4699,7 +4734,7 @@ const draw=()=>{let b;do{b=parseInt(crypto.randomBytes(1).toString('hex'),16);}w
 class TableRooms{
  constructor({maxRooms=12,idleMs=7200000,turnMs=30000,cpuMs=700}={}){Object.assign(this,{maxRooms,idleMs,turnMs,cpuMs});this.rooms=new Map();}
  create(name,game='sanma'){this.expire();if(!['sanma','chinchiro'].includes(game))throw Error('ゲームの種類が不正です');if(this.rooms.size>=this.maxRooms)throw Error('満室です');let code;do{code=crypto.randomBytes(4).toString('hex').toUpperCase();}while(this.rooms.has(code));const r={code,kind:game,host:0,members:[],phase:'lobby',revision:0,touched:Date.now(),settings:game==='sanma'?this.sanmaConfig({}):{mode:'normal',tie:'parent',settlement:'classic',initial:1000,stake:10,laps:1},acks:new Set(),timer:null};this.rooms.set(code,r);return this.join(code,name);}
- sanmaConfig(b){const keys=['house','flowerRules','pocchiTypes','pocchiIppatsuDice','flowerCopies','startSeat','cpuLevel'],c=Object.fromEntries(keys.filter(k=>b[k]!==undefined).map(k=>[k,b[k]]));return E.Sanma.options(c);}
+ sanmaConfig(b){const keys=['house','flowerRules','pocchiTypes','pocchiIppatsuDice','flowerCopies','startSeat','cpuLevel','customRuleName'],c=Object.fromEntries(keys.filter(k=>b[k]!==undefined).map(k=>[k,b[k]]));return E.Sanma.options(c);}
  room(code){const r=this.rooms.get(String(code).toUpperCase());if(!r)throw Error('ルームが見つかりません');return r;}
  invitation(r,m,options){return require("online/invitations.js").issue(r,m,options);}
  join(code,name,kind,invite){const r=this.room(code);require("online/invitations.js").validate(r,invite);if(kind!==undefined&&kind!==r.kind)throw Error('ゲームの種類が違います');if(r.phase!=='lobby')throw Error('開始後は新しく参加できません');if(r.members.length>=(r.kind==='sanma'?3:20))throw Error('満席です');name=String(name||'').trim().normalize('NFC');if(!name||name.length>16||r.members.some(m=>m.name===name))throw Error('名前は重複しない1〜16文字にしてください');const m={id:r.members.length,name,token:crypto.randomBytes(32).toString('hex'),ready:false,waiters:new Set(),seen:new Set(),lastSeen:Date.now()};r.members.push(m);this.touch(r);return {room:r.code,self:m.id,token:m.token,game:r.kind};}
