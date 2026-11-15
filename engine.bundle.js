@@ -5,11 +5,14 @@ const CpuProfiles=require("offline/cpu-profiles.js");
 const ReactionGate=require("offline/reaction-gate.js");
 const M = require("vendor/majiang-core/lib/index.js");
 const J=require("offline/jewels.js");
+const CustomFour=require("offline/custom-four.js");
 const Replay=require("offline/replay.js")({M,J});
 const Physical=require("offline/physical.js")(M);
 const PAYOUT = [50,25,-25,-50];
 const UNLOCK_YAKU = ['平和','断幺九','一盃口','三色同順','一気通貫','混全帯幺九','七対子','対々和','三暗刻','三色同刻','混老頭','小三元','混一色','純全帯幺九','二盃口','清一色'];
 function rule(extra={}) {
+ if(extra.customFour){if(extra.nekkyou)throw Error('カスタムルールとハードモードは同時に使用できません');const c=CustomFour.validate(extra.customFour);return {...rule({...extra,customFour:null,gemSelection:[]}),customFour:c,customRuleName:c.name,nekkyou:false,jewelBonus:false,fullJewel:false,unlockedYaku:null,gemSelection:[],gemTiles:CustomFour.gems(c),pocchiModes:[],whitePocchi:c.tiles.some(t=>t.base==='z5'),pocchiAmethyst:false,goldPocchi:false,ganePocchi:false};}
+
  for(const key of ['四家立直流局あり','四風連打流局あり'])if(extra[key]!==undefined&&typeof extra[key]!=='boolean')throw Error('途中流局設定が不正です');
  if(extra.cpuLevel!==undefined)CpuProfiles.validate(extra.cpuLevel);
  const modes=extra.pocchiModes||[extra.pocchiMode||'amethyst-white'];
@@ -139,7 +142,7 @@ if(!['hule','jieju'].includes(type)&&this._openRiichi?.some(Boolean)){const expo
    for(let seat=0;seat<4;seat++) {
     const id=ids[seat];
     if(this.model.defen[id]>=0 && this.model.defen[id]+h.fenpei[seat]<0 && !this.busted.has(id)) {
-     transfer(this.chips,winner,id,this._rule.nekkyou?5:10);this.busted.add(id);victims.push(id);
+     transfer(this.chips,winner,id,this._rule.customFour?.tobiChips??(this._rule.nekkyou?5:10));this.busted.add(id);victims.push(id);
     }
    }
    h.jewelChips=n;h.jewelTotal=n*(loser===null?3:1);h.chipWinner=winner;h.chipLoser=loser;h.chipBalances=this.chips.slice();h.chipDelta=this.chips.map((v,id)=>v-before[id]);h.tobi=victims;this.bonusLog.push({winner,loser,n,victims});
@@ -148,9 +151,9 @@ if(!['hule','jieju'].includes(type)&&this._openRiichi?.some(Boolean)){const expo
   super.add_paipu(msg);
  }
  last() { if(this._dealerPass&&this._lianzhuang){this._lianzhuang=false;this.model.changbang=0;}if(this.model.defen.some(n=>n>=55000)) {this.cold=true;return this.delay(()=>this.jieju(),0);}return super.last(); }
- jieju() {if(this.cold&&this._rule.nekkyou&&!this._coldAwarded){this._coldAwarded=true;const winner=this.model.defen.indexOf(Math.max(...this.model.defen));transfer(this.chips,winner,null,3);}this._paipu.nekkyou=!!this._rule.nekkyou;this._paipu.bonusChips=this.chips.slice();this._paipu.cold=!!this.cold;return super.jieju();}
+ jieju() {if(this.cold&&(this._rule.nekkyou||this._rule.customFour?.coldChips)&&!this._coldAwarded){this._coldAwarded=true;const winner=this.model.defen.indexOf(Math.max(...this.model.defen));transfer(this.chips,winner,null,this._rule.customFour?.coldChips??3);}this._paipu.nekkyou=!!this._rule.nekkyou;if(this._rule.customFour)this._paipu.customFour=CustomFour.validate(this._rule.customFour);this._paipu.bonusChips=this.chips.slice();this._paipu.cold=!!this.cold;return super.jieju();}
 }
-function settle(paipu) {return paipu.defen.map((points,id)=>({id,points,rank:paipu.rank[id],rankChips:(paipu.nekkyou?[15,5,-5,-15]:PAYOUT)[paipu.rank[id]-1],bonusChips:paipu.bonusChips?.[id]||0}));}
+function settle(paipu) {return paipu.defen.map((points,id)=>({id,points,rank:paipu.rank[id],rankChips:(paipu.customFour?.rankChips||(paipu.nekkyou?[15,5,-5,-15]:PAYOUT))[paipu.rank[id]-1],bonusChips:paipu.bonusChips?.[id]||0}));}
 function saveResult(storage,id,results) {
  const key='jewel-offline-results-v1'; let record;
  try {record=JSON.parse(storage.getItem(key)||'{"games":[],"totals":{}}');}catch{throw Error('保存データを読み取れません。既存データは変更していません。');}
@@ -159,7 +162,7 @@ function saveResult(storage,id,results) {
  for(const r of results){const t=record.totals[r.id]||{rankChips:0,bonusChips:0,games:0};record.totals[r.id]={rankChips:t.rankChips+r.rankChips,bonusChips:t.bonusChips+r.bonusChips,games:t.games+1};}
  record.games.push({id,at:new Date().toISOString(),results});storage.setItem(key,JSON.stringify(record));return record;
 }
-module.exports={M,J,CpuProfiles,Physical,UNLOCK_YAKU,indicatorNumber,garnetValue,rule,actions,cpu,openTargets,Player,Game,bonus,transfer,settle,saveResult};
+module.exports={M,J,CustomFour,CpuProfiles,Physical,UNLOCK_YAKU,indicatorNumber,garnetValue,rule,actions,cpu,openTargets,Player,Game,bonus,transfer,settle,saveResult};
 module.exports.Replay=require("offline/replay.js")(module.exports);
 module.exports.Sanma=require("offline/sanma/index.js")(module.exports);
 
@@ -820,11 +823,11 @@ module.exports = function(param = {}) {
 module.exports = class Shoupai {
 
     static normal_pai(p) {
-        return p[0] === 'z' ? p.replace(/[089A-C]/g, n=>({0:'5',8:'6',9:'4',A:'5',B:'5',C:'5'}[n])) : p.replace(/[0A]/g,'5');
+        return p[0] === 'z' ? p.replace(/[089A-C]/g, n=>({0:'5',8:'6',9:'4',A:'5',B:'5',C:'5'}[n])) : p.replace(/[0A-C]/g,'5');
     }
 
     static valid_pai(p) {
-        if (p.match(/^(?:[mps][0-9A]|z[0-9A-C])_?\*?[\+\=\-]?$/)) return p;
+        if (p.match(/^(?:[mps][0-9A-C]|z[0-9A-C])_?\*?[\+\=\-]?$/)) return p;
     }
 
     static valid_mianzi(m) {
@@ -856,9 +859,9 @@ module.exports = class Shoupai {
 
         this._bingpai = {
             _:  0,
-            m: [0,0,0,0,0,0,0,0,0,0,0],
-            p: [0,0,0,0,0,0,0,0,0,0,0],
-            s: [0,0,0,0,0,0,0,0,0,0,0],
+            m: [0,0,0,0,0,0,0,0,0,0,0,0,0],
+            p: [0,0,0,0,0,0,0,0,0,0,0,0,0],
+            s: [0,0,0,0,0,0,0,0,0,0,0,0,0],
             z: [0,0,0,0,0,0,0,0,0,0,0,0,0],
         };
         this._fulou = [];
@@ -921,7 +924,7 @@ module.exports = class Shoupai {
             let suitstr = s;
             let bingpai = this._bingpai[s];
             for (let n=1;n<=(s==='z'?7:9);n++) {
-                const markers = s==='z'?({4:[9],5:[0,10,11,12],6:[8]}[n]||[]):n===5?[0,10]:[];
+                const markers = s==='z'?({4:[9],5:[0,10,11,12],6:[8]}[n]||[]):n===5?[0,10,11,12]:[];
                 let total=bingpai[n], special=0;
                 for(const marker of markers){const ch=({10:'A',11:'B',12:'C'}[marker]??String(marker));let count=bingpai[marker]||0;if(this._zimo===s+ch){total--;count--;}special+=count;suitstr+=ch.repeat(Math.max(0,count));}
                 if(this._zimo===s+n)total--;
@@ -979,7 +982,7 @@ module.exports = class Shoupai {
         let bingpai = this._bingpai[s]; n = ({A:10,B:11,C:12}[n]??+n);
         const base = +Shoupai.normal_pai(s+(({10:'A',11:'B',12:'C'}[n]??n)))[1];
         const marker = s==='z' ? ({4:9,5:0,6:8}[base]) : base===5 ? 0 : undefined;
-        const available = n===base ? bingpai[base]-(marker===undefined?0:bingpai[marker])-(base===5?bingpai[10]+(s==='z'?(bingpai[11]||0)+(bingpai[12]||0):0):0) : bingpai[n];
+        const available = n===base ? bingpai[base]-(marker===undefined?0:bingpai[marker])-(base===5?bingpai[10]+(bingpai[11]||0)+(bingpai[12]||0):0) : bingpai[n];
         if (!available) {
             if (!this._bingpai._) throw new Error([this,s+n]);
             this._bingpai._--;
@@ -1358,7 +1361,7 @@ module.exports = class He {
 
     fulou(m) {
         if (! Majiang.Shoupai.valid_mianzi(m))      throw new Error(m);
-        let p = m[0] + m.match(/[0-9A](?=[\+\=\-])/), d = m.match(/[\+\=\-]/);
+        let p = m[0] + m.match(/[0-9A-C](?=[\+\=\-])/), d = m.match(/[\+\=\-]/);
         if (! d)                                    throw new Error(m);
         if (this._pai[this._pai.length - 1].slice(0,2) != p)
                                                     throw new Error(m);
@@ -1895,7 +1898,7 @@ module.exports = class Game {
 
         model.shoupai[model.lunban].fulou(fulou);
 
-        if (fulou.match(/^[mpsz][0-9A]{4}/)) {
+        if (fulou.match(/^[mpsz][0-9A-C]{4}/)) {
             this._gang = fulou;
             this._n_gang[model.lunban]++;
         }
@@ -1945,7 +1948,7 @@ module.exports = class Game {
         let zimo = model.shan.gangzimo();
         // Reveal the new indicator before delivering or recording the rinshan draw.
         if (! this._rule['カンドラ後乗せ'] ||
-            this._gang.match(/^[mpsz][0-9A]{4}$/)) this.kaigang();
+            this._gang.match(/^[mpsz][0-9A-C]{4}$/)) this.kaigang();
         model.shoupai[model.lunban].zimo(zimo);
 
         let paipu = { gangzimo: { l: model.lunban, p: zimo } };
@@ -2225,7 +2228,7 @@ module.exports = class Game {
         }
         this._paipu.rank = rank;
 
-        const round = ! this._rule['順位点'].find(p=>p.match(/\.[0-9A]$/));
+        const round = ! this._rule['順位点'].find(p=>p.match(/\.[0-9A-C]$/));
         let point = [0,0,0,0];
         for (let i = 1; i < 4; i++) {
             let id = paiming[i];
@@ -2367,13 +2370,13 @@ module.exports = class Game {
             let reply = this.get_reply(l);
             if (reply.fulou) {
                 let m = Majiang.Shoupai.normal_pai(reply.fulou);
-                if (m.match(/^[mpsz]([0-9A])\1\1\1/)) {
+                if (m.match(/^[mpsz]([0-9A-C])\1\1\1/)) {
                     if (this.get_gang_mianzi(l).find(m => m == reply.fulou)) {
                         this.say('gang', l);
                         return this.delay(()=>this.fulou(reply.fulou));
                     }
                 }
-                else if (m.match(/^[mpsz]([0-9A])\1\1/)) {
+                else if (m.match(/^[mpsz]([0-9A-C])\1\1/)) {
                     if (this.get_peng_mianzi(l).find(m => m == reply.fulou)) {
                         this.say('peng', l);
                         return this.delay(()=>this.fulou(reply.fulou));
@@ -2416,7 +2419,7 @@ module.exports = class Game {
 
         let model = this._model;
 
-        if (this._gang.match(/^[mpsz][0-9A]{4}$/)) {
+        if (this._gang.match(/^[mpsz][0-9A-C]{4}$/)) {
             return this.delay(()=>this.gangzimo(), 0);
         }
 
@@ -2553,7 +2556,7 @@ module.exports = class Game {
             && shoupai._zimo && shoupai._zimo.length > 2)
         {
             let deny = shoupai._zimo[0]
-                     + (+shoupai._zimo.match(/[0-9A](?=[\+\=\-])/)||5);
+                     + (+shoupai._zimo.match(/[0-9A-C](?=[\+\=\-])/)||5);
             return shoupai.get_dapai(false)
                                 .filter(p => p.replace(/0/,'5') != deny);
         }
@@ -2737,14 +2740,14 @@ function gemsFor(rule,t){const physical=rule.gemTiles?.[t];if(physical)return [p
 function owned(rule,hand){return rawTiles(typeof hand==='string'?hand:hand.toString()).flatMap(t=>gemsFor(rule,t));}
 function has(rule,hand,effect){return owned(rule,hand).some(g=>g.effect===effect);}
 function wildcard(rule,hand){return gemsFor(rule,hand._zimo).some(g=>g.pocchi&&(g.id==='gold-pocchi'||hand.lizhi));}
-function number(p){return p&&p[0]!=='z'?(p[1]==='0'||p[1]==='A'?5:+p[1]):0;}
+function number(p){return p&&p[0]!=='z'?(/[0A-C]/.test(p[1])?5:+p[1]):0;}
 function garnet(indicators=[],ura=[]){return Math.max(0,...indicators.map((p,i)=>number(p[0]==='z'?ura[i]:p)));}
 function full(rule,items){const numbers=Object.values(rule.gemTiles||{}).filter(g=>!g.pocchi);return numbers.length>0&&numbers.every(g=>items.some(x=>x.id===g.id))&&new Set(items.filter(g=>g.pocchi).map(g=>g.id)).size>=2;}
 function modifyHan(items,han,choice){const car=items.some(g=>g.effect==='carnelian');const mode=car&&(choice==='han'||han<=1)?'han':'chips';if(car)han+=mode==='han'?5:-1;const pearls=items.filter(g=>g.effect==='pearl').length;return {han:han*2**pearls,carnelianChoice:car?mode:null};}
 function bonusBreakdown(h,points,unlockedYaku,rule){
  rule=effectiveRule(rule,h.indicators||rule.jewelIndicators,h.fubaopai||[]);const items=owned(rule,h.shoupai),lines=[];
  const add=(label,amount,reason='')=>lines.push({label,amount,reason});
- for(const y of h.hupai||[])if(['一発','裏ドラ'].includes(y.name))add(y.name,+y.fanshu||0);
+ for(const y of h.hupai||[])if(['一発','裏ドラ'].includes(y.name))add(y.name,(+y.fanshu||0)*(rule.customFour?(y.name==='一発'?rule.customFour.ippatsuChips:rule.customFour.uraChips):1));
  if(h.damanguan)add('役満祝儀',(h.baojia==null?(rule.nekkyou?20:10):(rule.nekkyou?40:20))*h.damanguan,h.damanguan+'倍役満');
  else if(h.fanshu>=13)add('数え役満祝儀',h.baojia==null?5:10);
  if(rule.nekkyou){for(const y of h.hupai||[])if(EVENT_YAKU.includes(y.name))add('祝儀手役',5,y.name);if((h.hupai||[]).some(y=>y.name==='清一色'))add('祝儀手役',5,/[,]/.test(h.shoupai)?'副露清一色':'門前清一色');if(h.badOpen)add('愚形オープン',5);}else if((h.hupai||[]).some(y=>y.name===unlockedYaku))add('祝儀手役',5,unlockedYaku);
@@ -3734,7 +3737,7 @@ function hule(shoupai, rongpai, param) {
     const scoringRule={...param.rule,_turquoise:items.some(g=>g.effect==='turquoise')};
 
     let candidates=hule_mianzi(shoupai,rongpai);
-    if(scoringRule._turquoise && physical._fulou.length && !physical._fulou.some(m=>(m.match(/[0-9A]/g)||[]).length===4)) {
+    if(scoringRule._turquoise && physical._fulou.length && !physical._fulou.some(m=>(m.match(/[0-9A-C]/g)||[]).length===4)) {
         const flat=physical.clone();
         for(const m of flat._fulou)for(const n of Majiang.Shoupai.normal_pai(m).match(/[0-9]/g)||[])flat._bingpai[m[0]][+n]++;
         flat._fulou=[];
@@ -3914,7 +3917,7 @@ module.exports = class Player {
         if (this._callback) this.action_gang(gang);
 
         this._diyizimo = false;
-        if (gang.l != this._menfeng && ! gang.m.match(/^[mpsz][0-9A]{4}$/)) {
+        if (gang.l != this._menfeng && ! gang.m.match(/^[mpsz][0-9A-C]{4}$/)) {
             let normalized=Majiang.Shoupai.normal_pai(gang.m[0]+gang.m.slice(-1));
             let s=normalized[0], n=+normalized[1];
             if (this.hulepai.find(p=> p == s+n)) this._neng_rong = false;
@@ -3983,12 +3986,23 @@ module.exports = class Player {
 
 
 },
+"offline/custom-four.js":function(module,exports,require){
+'use strict';
+const BASES=['m5','p5','s5','z5'],MARKERS=['0','A','B','C'];
+function integer(v,min,max,label){if(!Number.isSafeInteger(v)||v<min||v>max)throw Error(label+'は'+min+'〜'+max+'の整数です');return v;}
+function text(v,label){if(typeof v!=='string')throw Error(label+'が不正です');v=v.trim().replace(/\s+/g,' ');if(!v||[...v].length>40||/[\u0000-\u001f\u007f]/.test(v))throw Error(label+'は1〜40文字です');return v;}
+function validate(value){if(!value||typeof value!=='object'||Array.isArray(value)||value.version!==1)throw Error('カスタムルールの形式が不正です');const name=text(value.name,'ルール名'),tiles=[],seen=new Set();if(!Array.isArray(value.tiles)||value.tiles.length>16)throw Error('牌の設定が不正です');for(const t of value.tiles){if(!t||!BASES.includes(t.base))throw Error('設定できる牌は五萬・五筒・五索・白ポッチです');const slot=integer(t.slot,0,3,'牌の位置'),key=t.base+':'+slot;if(seen.has(key))throw Error('同じ牌位置が重複しています');seen.add(key);tiles.push({base:t.base,slot,name:text(t.name,'牌の名前'),chips:integer(t.chips,0,1000,'祝儀枚数')});}tiles.sort((a,b)=>BASES.indexOf(a.base)-BASES.indexOf(b.base)||a.slot-b.slot);const rankChips=value.rankChips??[50,25,-25,-50];if(!Array.isArray(rankChips)||rankChips.length!==4||rankChips.some(n=>!Number.isSafeInteger(n)||Math.abs(n)>10000)||rankChips.reduce((a,b)=>a+b)!==0)throw Error('順位祝儀は4人分・合計0の整数にしてください');return {version:1,name,tiles,ippatsuChips:integer(value.ippatsuChips??1,0,1000,'一発祝儀'),uraChips:integer(value.uraChips??1,0,1000,'裏ドラ祝儀'),coldChips:integer(value.coldChips??0,0,1000,'コールド祝儀'),tobiChips:integer(value.tobiChips??10,0,1000,'トビ賞'),rankChips:rankChips.slice()};}
+function gems(value){const c=validate(value),out={};for(const t of c.tiles){const token=t.base[0]+MARKERS[t.slot];out[token]={id:'custom-'+t.base+'-'+t.slot,name:t.name,base:t.base,han:t.base==='z5'?0:1,effect:'fixed',chips:t.chips,pocchi:t.base==='z5',custom:true};}return out;}
+function example(){return validate({version:1,name:'DAN風・牌構成',tiles:['m5','p5','s5'].flatMap(base=>['金','プラチナ','マリン'].map((name,slot)=>({base,slot,name,chips:[2,4,6][slot]}))),ippatsuChips:2,uraChips:2,coldChips:4,tobiChips:10,rankChips:[20,5,-5,-20]});}
+module.exports={validate,gems,example,BASES,MARKERS};
+
+},
 "offline/replay.js":function(module,exports,require){
 'use strict';
 module.exports=function(E){
  const {M,J}=E,clone=x=>x===undefined?null:JSON.parse(JSON.stringify(x)),schema='houseki-mahjong-replay',version=1;
  const EFFECTS={fixed:'基本祝儀にchips枚を加算',lapis:'和了の最終翻数が祝儀枚数',amethyst:'基本祝儀+1、祝儀倍率は通常2の使用枚数乗。ハードモードは1+使用枚数',pearl:'翻数2倍、祝儀+3',turquoise:'祝儀+4、食い下がりなし、副露後リーチ可（打牌後にも効果牌が必要）',black:'么九牌を祝儀化。タンヤオ5、暗刻5、暗槓10',garnet:'ドラ表示の数牌の最大数字。字牌の場合は裏表示を参照',crystal:'和了牌の数字。字牌0',tourmaline:'和了前持ち点の万・千・百の最大数字。ハードモードの0点は10',gane:'ガーネットとクリスタルの高い方',carnelian:'祝儀優先は-1翻+5枚、翻優先は+5翻-1枚'};
- function rules4(rule){const settings=clone(rule);delete settings.jewelIndicators;delete settings.jewelInherited;return {settings,mode:rule.nekkyou?'ハードモード':'通常',gemTiles:Object.fromEntries(Object.entries(rule.gemTiles||{}).map(([token,g])=>[token,{...clone(g),description:EFFECTS[g.effect],wildcard:g.pocchi?(g.id==='gold-pocchi'?'役ありテンパイでツモ時、万能（副露可）':'リーチ後ツモ時、万能'):null}])),summary:['東風、25000点開始、55000点コールド、東と西は場風牌','1本場1500点、切り上げ満貫、槓ドラ先めくり','順位祝儀 '+(rule.nekkyou?'+15/+5/-5/-15、トビ5':'＋50/＋25/−25/−50、トビ10'),'通常祝儀はロン放銃者払い・ツモ各家払い','祝儀手役は '+rule.unlockedYaku+'、基本祝儀+5。アメジスト等の倍率適用前','親和了・テンパイ流局後の任意親流しあり。本場0へ。CPUも選択','フルジュエル：採用数牌宝石を全使用、ポッチ2種類以上。Jewel：通常は効果適用される宝石3枚以上、ハードモードは宝石3種類以上、1翻']};}
+ function rules4(rule){const settings=clone(rule);delete settings.jewelIndicators;delete settings.jewelInherited;return {settings,mode:rule.customFour?'カスタム：'+rule.customFour.name:rule.nekkyou?'ハードモード':'通常',gemTiles:Object.fromEntries(Object.entries(rule.gemTiles||{}).map(([token,g])=>[token,{...clone(g),description:EFFECTS[g.effect],wildcard:g.pocchi?(g.id==='gold-pocchi'?'役ありテンパイでツモ時、万能（副露可）':'リーチ後ツモ時、万能'):null}])),summary:rule.customFour?['カスタム：'+rule.customFour.name,'東風、25000点開始、55000点コールド、1本場1500点','特殊な5は各1翻、ポッチはリーチ後のツモで万能。追加効果は固定祝儀のみ','一発1翻につき'+rule.customFour.ippatsuChips+'枚、裏ドラ1翻につき'+rule.customFour.uraChips+'枚','順位祝儀 '+rule.customFour.rankChips.join('/')+'、トビ '+rule.customFour.tobiChips+'枚、コールド '+rule.customFour.coldChips+'枚オール','Jewel・フルジュエル・抽選祝儀手役は不採用']:['東風、25000点開始、55000点コールド、東と西は場風牌','1本場1500点、切り上げ満貫、槓ドラ先めくり','順位祝儀 '+(rule.nekkyou?'+15/+5/-5/-15、トビ5':'＋50/＋25/−25/−50、トビ10'),'通常祝儀はロン放銃者払い・ツモ各家払い','祝儀手役は '+rule.unlockedYaku+'、基本祝儀+5。アメジスト等の倍率適用前','親和了・テンパイ流局後の任意親流しあり。本場0へ。CPUも選択','フルジュエル：採用数牌宝石を全使用、ポッチ2種類以上。Jewel：通常は効果適用される宝石3枚以上、ハードモードは宝石3種類以上、1翻']};}
  function rules3(g){const S=E.Sanma;const fields=Object.fromEntries(Object.entries(S.H.FIELDS).map(([key,f])=>[key,{value:g.options.house[key],label:f.label,selected:f.values?f.labels[f.values.indexOf(g.options.house[key])]:g.options.house[key]}]));return {settings:clone(g.options),engineRule:clone(g.rule),house:fields,pocchi:S.POCCHI,pocchiNames:S.POCCHI_NAMES,flowerNames:S.FLOWERS,summary:['東風35000点開始、萬子2〜8を除く、華は抜き牌、30符固定、ツモ損なし','人和なし。親流しなし。槓ドラ先めくり。持ち点・チップは別計算','北抜きと華抜き、リーチ/オープン/シュバの採用はsettings参照','ポッチ：normal通常/reverse支払い/double倍受取/reverseDouble倍支払い。リーチ後ツモで万能','シュバは各家1ゲーム1回、受取2倍。トビ倍払い有効時、ツモは飛んだ支払者のみ2倍、シュバと重複','春 linked=春枚数×華総数の差分即時祝儀、fixed=抜き時1枚、tulip=リーチ和了時チューリップ、off=なし','夏 rank=打点ランク上昇、han=加翻。秋 dora=5筒索加翻、chips=祝儀、double=5筒索打点祝儀倍','冬 alice=アリス、tulip=チューリップ、chips=1効果あたり2枚、dice=1効果あたりサイコロ1個。ロンの支払元はwinterRonPayer参照','点数・役・追加祝儀の細則はhouseの全項目を参照。通常麻雀の標準ルールだけでは評価しない']};}
  function notation(gems={}){const tiles={};for(const s of ['m','p','s','z'])for(let n=1;n<=(s==='z'?7:9);n++)tiles[s+n]={normal:s+n,name:s==='z'?['','東','南','西','北','白','發','中'][n]:n+({m:'萬',p:'筒',s:'索'}[s])};for(const [t,g]of Object.entries(gems))tiles[t]={normal:g.base,name:g.name,gemId:g.id};return {roundNumbers:'四麻はhand=0が東1局、wind=0東/1南。サンマはhand=1東1局、4南1局。seat=0東/1南/2西/3北。playerIdは風席ではなく固定ID',suits:{m:'萬子',p:'筒子',s:'索子',z:'字牌',f:'華'},tiles,handFormat:'m123p456s789z11,p123- は手牌と副露。逗点以降は副露。牌文字A/B/C/0は特殊牌であり数字として扱わない',suffixes:{_:'ツモ切り（手牌末尾のツモ牌にも使用）','*':'リーチ宣言','+':'下家から（四麻の相対方向記号。サンマはfromとactorを優先）','=':'対面から','-':'上家から（河では鳴かれた印にも使用）'},seatMapping:'全playerIdは対局開始時の固定ID。四麻の生ログlはその局の風席。各決定のplayerIdsBySeatで変換。サンマは固定ID',unknown:'decision.viewには本人の手牌と公開情報のみ。他家の伏せ手牌・山・未公開裏ドラを含めない'};}
  function create(){return {startedAt:new Date().toISOString(),seq:0,events:[],decisions:[]};}
@@ -4008,8 +4022,8 @@ module.exports=function(E){
 module.exports=function install(M){
  const S=M.Shoupai, originalValid=S.valid_mianzi;
  S.valid_mianzi=m=>originalValid(S.normal_pai(m))?m:undefined;
- function normalized(hand){const h=hand.clone();for(const s of ['m','p','s','z']){for(const n of s==='z'?[0,8,9,10,11,12]:[0,10])h._bingpai[s][n]=0;}h._zimo=h._zimo?S.normal_pai(h._zimo):null;h._fulou=h._fulou.map(m=>S.normal_pai(m));return h;}
- function available(hand,s,n){const b=hand._bingpai[s],markers=s==='z'?({4:[9],5:[0,10,11,12],6:[8]}[n]||[]):n===5?[0,10]:[];const a=[];let specials=0;for(const i of markers){const k=b[i]||0;specials+=k;for(let j=0;j<k;j++)a.push(({10:'A',11:'B',12:'C'}[i]??String(i)));}for(let j=0;j<b[n]-specials;j++)a.push(String(n));return a;}
+ function normalized(hand){const h=hand.clone();for(const s of ['m','p','s','z']){for(const n of s==='z'?[0,8,9,10,11,12]:[0,10,11,12])h._bingpai[s][n]=0;}h._zimo=h._zimo?S.normal_pai(h._zimo):null;h._fulou=h._fulou.map(m=>S.normal_pai(m));return h;}
+ function available(hand,s,n){const b=hand._bingpai[s],markers=s==='z'?({4:[9],5:[0,10,11,12],6:[8]}[n]||[]):n===5?[0,10,11,12]:[];const a=[];let specials=0;for(const i of markers){const k=b[i]||0;specials+=k;for(let j=0;j<k;j++)a.push(({10:'A',11:'B',12:'C'}[i]??String(i)));}for(let j=0;j<b[n]-specials;j++)a.push(String(n));return a;}
  const getDiscard=S.prototype.get_dapai;
  S.prototype.get_dapai=function(check=true){if(this.lizhi)return this._zimo?.length===2?[this._zimo+'_']:null;const legal=getDiscard.call(normalized(this),check);if(!legal)return legal;const out=[];for(const p of legal){if(p.endsWith('_'))out.push(this._zimo+'_');else for(const ch of new Set(available(this,p[0],+p[1])))out.push(p[0]+ch);}return [...new Set(out)];};
  for(const name of ['get_chi_mianzi','get_peng_mianzi','get_gang_mianzi']){
@@ -4611,17 +4625,17 @@ const crypto=require("online/crypto.js"),E=require("offline/engine.js");
 const copy=x=>JSON.parse(JSON.stringify(x));
 class Rooms {
  constructor({maxRooms=8,turnMs=20000,callMs=10000,confirmMs=15000,speed=0,idleMs=2*3600000}={}){Object.assign(this,{maxRooms,turnMs,callMs,confirmMs,speed,idleMs});this.rooms=new Map();}
- create(name){this.expire();if(this.rooms.size>=this.maxRooms)throw Error('現在満室です。しばらく待ってください');let code;do{code=crypto.randomBytes(4).toString('hex').toUpperCase();}while(this.rooms.has(code));const r={code,host:0,members:[],selection:E.J.DEFAULT.slice(),nekkyou:false,fourRiichiAbort:false,fourWindsAbort:true,cpuLevel:'standard',game:null,phase:'lobby',touched:Date.now(),id:crypto.randomUUID()};this.rooms.set(code,r);return this.join(code,name);}
+ create(name){this.expire();if(this.rooms.size>=this.maxRooms)throw Error('現在満室です。しばらく待ってください');let code;do{code=crypto.randomBytes(4).toString('hex').toUpperCase();}while(this.rooms.has(code));const r={code,host:0,members:[],selection:E.J.DEFAULT.slice(),customFour:null,nekkyou:false,fourRiichiAbort:false,fourWindsAbort:true,cpuLevel:'standard',game:null,phase:'lobby',touched:Date.now(),id:crypto.randomUUID()};this.rooms.set(code,r);return this.join(code,name);}
  room(code){const r=this.rooms.get(String(code).toUpperCase());if(!r)throw Error('ルームが見つかりません。サーバー再起動の場合は作り直してください');return r;}
  invitation(r,m,options){return require("online/invitations.js").issue(r,m,options);}
  join(code,name,kind,invite){const r=this.room(code);require("online/invitations.js").validate(r,invite);if(r.phase!=='lobby')throw Error('対局開始後は新規参加できません');if(r.members.length>=4)throw Error('満席です');name=String(name||'').trim();if(!name||name.length>16)throw Error('名前は1〜16文字にしてください');const m={id:r.members.length,name,token:crypto.randomBytes(32).toString('hex'),events:[],waiters:new Set(),pending:null,ready:false,lastSeen:Date.now(),joined:Date.now(),seen:new Map()};r.members.push(m);r.touched=Date.now();this.lobby(r);return {room:r.code,token:m.token,self:m.id};}
  auth(code,token){const r=this.room(code),m=r.members.find(m=>m.token===token);if(!m)throw Error('参加情報が無効です');m.lastSeen=Date.now();r.touched=Date.now();return {r,m};}
  emit(m,type,data){if(m.events.length>=20000)throw Error('対局ログ上限です');m.events.push({seq:m.events.length+1,type,data:copy(data)});for(const wake of m.waiters)wake();m.waiters.clear();}
- lobby(r){const data={room:r.code,host:r.host,phase:r.phase,selection:r.selection,nekkyou:r.nekkyou,fourRiichiAbort:r.fourRiichiAbort===true,fourWindsAbort:r.fourWindsAbort!==false,cpuLevel:r.cpuLevel,members:r.members.map(m=>({id:m.id,name:m.name,ready:m.ready,connected:Date.now()-m.lastSeen<45000})),cpu:4-r.members.length};for(const m of r.members)this.emit(m,'lobby',data);}
+ lobby(r){const data={room:r.code,host:r.host,phase:r.phase,selection:r.selection,customFour:r.customFour||null,nekkyou:r.nekkyou,fourRiichiAbort:r.fourRiichiAbort===true,fourWindsAbort:r.fourWindsAbort!==false,cpuLevel:r.cpuLevel,members:r.members.map(m=>({id:m.id,name:m.name,ready:m.ready,connected:Date.now()-m.lastSeen<45000})),cpu:4-r.members.length};for(const m of r.members)this.emit(m,'lobby',data);}
  request(r,m,type,data,callback,ms,fallback){const id=crypto.randomUUID(),deadline=Date.now()+ms;const finish=reply=>{if(m.pending?.id!==id)return;clearTimeout(m.pending.timer);m.pending=null;this.emit(m,'resolved',{id});callback(reply);};m.pending={id,type,data,deadline,finish,timer:setTimeout(()=>finish(fallback()),ms)};m.pending.timer.unref?.();this.emit(m,'prompt',{id,type,data,deadline});}
  command(r,m,command){
   const {type}=command;
-  if(type==='configure'){if(m.id!==r.host||r.phase!=='lobby')throw Error('設定変更は開始前のオーナーのみです');E.J.configure(command.selection);for(const k of ['fourRiichiAbort','fourWindsAbort'])if(command[k]!==undefined&&typeof command[k]!=='boolean')throw Error('途中流局設定が不正です');if(command.nekkyou!==undefined&&typeof command.nekkyou!=='boolean')throw Error('ルール設定が不正です');if(command.cpuLevel!==undefined)E.CpuProfiles.validate(command.cpuLevel);if(command.fourRiichiAbort!==undefined)r.fourRiichiAbort=command.fourRiichiAbort;if(command.fourWindsAbort!==undefined)r.fourWindsAbort=command.fourWindsAbort;r.cpuLevel=command.cpuLevel||r.cpuLevel||'standard';r.selection=command.selection.slice();r.nekkyou=command.nekkyou===true;for(const p of r.members)p.ready=false;this.lobby(r);return;}
+  if(type==='configure'){if(m.id!==r.host||r.phase!=='lobby')throw Error('設定変更は開始前のオーナーのみです');const customFour=command.customFour?E.CustomFour.validate(command.customFour):null;E.J.configure(customFour?[]:command.selection);if(customFour&&command.nekkyou)throw Error('カスタムとハードは同時に使用できません');for(const k of ['fourRiichiAbort','fourWindsAbort'])if(command[k]!==undefined&&typeof command[k]!=='boolean')throw Error('途中流局設定が不正です');if(command.nekkyou!==undefined&&typeof command.nekkyou!=='boolean')throw Error('ルール設定が不正です');if(command.cpuLevel!==undefined)E.CpuProfiles.validate(command.cpuLevel);if(command.fourRiichiAbort!==undefined)r.fourRiichiAbort=command.fourRiichiAbort;if(command.fourWindsAbort!==undefined)r.fourWindsAbort=command.fourWindsAbort;r.cpuLevel=command.cpuLevel||r.cpuLevel||'standard';r.selection=customFour?[]:command.selection.slice();r.customFour=customFour;r.nekkyou=command.nekkyou===true;for(const p of r.members)p.ready=false;this.lobby(r);return;}
   if(type==='ready'){if(r.phase!=='lobby')throw Error('すでに開始しています');m.ready=command.ready===true;this.lobby(r);return;}
   if(type==='next'){
    if(command.matchId!==r.matchId||!r.matchId||!['finished','lobby'].includes(r.phase))throw Error('次の対局の準備は終局後に行ってください');
@@ -4646,7 +4660,7 @@ class Rooms {
    }else player=new E.Player((options,reply,msg,p)=>reply(E.cpu(p,options)));
    player.controller=m?'human':'cpu';players.push(player);
   }
-  r.game=new E.Game(players,paipu=>{r.phase='finished';r.results=E.settle(paipu);const replay=r.game.exportReplay(r.matchId);for(const m of r.members)this.emit(m,'result',{matchId:r.matchId,rows:r.results,cold:!!paipu.cold,replay});this.lobby(r);},{cpuLevel:r.cpuLevel||'standard',gemSelection:r.selection,nekkyou:r.nekkyou,'四家立直流局あり':r.fourRiichiAbort===true,'四風連打流局あり':r.fourWindsAbort!==false});r.game._model.player=[0,1,2,3].map(id=>r.members[id]?.name||'CPU '+(id+1));r.game.speed=this.speed;r.game.kaiju();
+  r.game=new E.Game(players,paipu=>{r.phase='finished';r.results=E.settle(paipu);const replay=r.game.exportReplay(r.matchId);for(const m of r.members)this.emit(m,'result',{matchId:r.matchId,rows:r.results,cold:!!paipu.cold,replay});this.lobby(r);},{cpuLevel:r.cpuLevel||'standard',gemSelection:r.selection,customFour:r.customFour||null,nekkyou:r.nekkyou,'四家立直流局あり':r.fourRiichiAbort===true,'四風連打流局あり':r.fourWindsAbort!==false});r.game._model.player=[0,1,2,3].map(id=>r.members[id]?.name||'CPU '+(id+1));r.game.speed=this.speed;r.game.kaiju();
  }
  events(r,m,after){if(!Number.isSafeInteger(after)||after<0||after>m.events.length)throw Error('受信位置が不正です');return {head:m.events.length,events:m.events.slice(after,after+200),pending:m.pending?{id:m.pending.id,type:m.pending.type,data:m.pending.data,deadline:m.pending.deadline}:null};}
  expire(){for(const [code,r]of this.rooms)if(Date.now()-r.touched>this.idleMs){r.game?.stop();for(const m of r.members){clearTimeout(m.pending?.timer);for(const wake of m.waiters)wake();}this.rooms.delete(code);}}
