@@ -10,7 +10,7 @@
     const row=el('label',T.label(tile)),input=el('input');input.type='number';input.min=0;input.max=1000;input.step=1;input.value=0;input.dataset.tileChip=tile;input.setAttribute('aria-label',T.label(tile)+'1枚あたりの祝儀');row.append(input,el('span','枚／1枚'));group.append(row);fields.set(tile,input);
    }root.append(group);
   }target.append(root);
-  return {get(){return T.validate([...fields].map(([tile,i])=>({tile,chips:i.value.trim()===''?NaN:Number(i.value)})),{sanma});},fill(value=[]){const rows=T.validate(value,{sanma});for(const [tile,i]of fields)i.value=String(rows.find(r=>r.tile===tile)?.chips||0);},root};
+  return {setExcluded(tiles=[]){for(const [tile,i]of fields){i.disabled=tiles.includes(tile);if(i.disabled)i.value=0;}},get(){return T.validate([...fields].map(([tile,i])=>({tile,chips:i.value.trim()===''?NaN:Number(i.value)})),{sanma});},fill(value=[]){const rows=T.validate(value,{sanma});for(const [tile,i]of fields)i.value=String(rows.find(r=>r.tile===tile)?.chips||0);},root};
  }
  function decorate(face,base,config){const value=config?.find(r=>r.tile===base)?.chips;if(!value)return;const badge=el('small','+'+value+'枚');badge.className='tile-chip-badge';face.append(badge);face.classList.add('has-tile-chip');face.title=(face.title||JewelOffline.TileChips.label(base))+'・牌別祝儀 '+value+'枚';}
  globalThis.TileChipEditor={mount,decorate};
