@@ -46,3 +46,5 @@ body.jewel-home::before{content:"";position:fixed;inset:0;pointer-events:none;op
 .dice-mode .dice-mode-caption{position:static;margin:8px 0 0;max-width:75%;font-size:13px;line-height:1.5;color:#d6d1b9}
 .dice-mode .mode-buttons{margin-top:auto;padding-top:24px;position:relative;z-index:1}
 .dice-mode .dice-online-link{flex:none;margin-top:12px;padding:4px 0;font-size:14px;line-height:1.5}
+/* Keep custom-mode artwork above the action row at every phone width. */
+.jewel-home .custom-mode{display:flex;flex-direction:column;min-height:260px}.jewel-home .custom-mode .mode-art{top:8px;right:8px;width:45%;height:145px}.jewel-home .custom-mode>p{max-width:55%;margin-top:10px;font-size:13px;line-height:1.6}.jewel-home .custom-mode .mode-buttons{margin-top:auto;padding-top:50px;position:relative;z-index:1}.custom-mode h2{position:relative;z-index:1}
