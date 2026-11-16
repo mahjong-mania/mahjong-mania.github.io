@@ -7,6 +7,7 @@ const M = require("vendor/majiang-core/lib/index.js");
 const J=require("offline/jewels.js");
 const CustomFour=require("offline/custom-four.js");
 const ResultRules=require("offline/result-rules.js");
+const TileChips=require("offline/tile-chips.js");
 const Replay=require("offline/replay.js")({M,J});
 const Physical=require("offline/physical.js")(M);
 const PAYOUT = [50,25,-25,-50];
@@ -163,7 +164,7 @@ function saveResult(storage,id,results,rule) {
  for(const r of results){const t=record.totals[r.id]||{rankChips:0,bonusChips:0,games:0};record.totals[r.id]={rankChips:t.rankChips+r.rankChips,bonusChips:t.bonusChips+r.bonusChips,games:t.games+1};}
  record.games.push({id,at:new Date().toISOString(),results,ruleMeta:ResultRules.four(rule)});storage.setItem(key,JSON.stringify(record));return record;
 }
-module.exports={M,J,CustomFour,ResultRules,CpuProfiles,Physical,UNLOCK_YAKU,indicatorNumber,garnetValue,rule,actions,cpu,openTargets,Player,Game,bonus,transfer,settle,saveResult};
+module.exports={M,J,CustomFour,ResultRules,TileChips,CpuProfiles,Physical,UNLOCK_YAKU,indicatorNumber,garnetValue,rule,actions,cpu,openTargets,Player,Game,bonus,transfer,settle,saveResult};
 module.exports.Replay=require("offline/replay.js")(module.exports);
 module.exports.Sanma=require("offline/sanma/index.js")(module.exports);
 
@@ -2765,6 +2766,7 @@ function bonusBreakdown(h,points,unlockedYaku,rule){
   add(g.name,amount,reason);
  }
  if(items.some(g=>g.id==='gold')&&items.some(g=>g.id==='gold-pocchi')&&(!h.pocchiAs||h.pocchiAs==='z6'))add('ゴールド＋ゴールド發ポッチ',10);
+ if(rule.customFour?.tileChips?.length)lines.push(...require("offline/tile-chips.js").breakdown(rule.customFour.tileChips,rawTiles(h.shoupai).map(t=>require("vendor/majiang-core/lib/shoupai.js").normal_pai(t).slice(0,2))));
  const subtotal=lines.reduce((n,l)=>n+l.amount,0),amethysts=items.filter(g=>g.effect==='amethyst'),multiplier=rule.nekkyou?1+amethysts.length:2**amethysts.length;
  return {lines,subtotal,multiplier,multipliers:amethysts.map(g=>g.name),perPayer:subtotal*multiplier};
 }
@@ -2775,6 +2777,28 @@ function blackChips(tiles,mianzi){
  return result;
 }
 module.exports={SOURCES,CATALOG,BY_ID,DEFAULT,NEKKYOU_SELECTION,EVENT_YAKU,effectiveRule,gemsFor,configure,rawTiles,owned,has,wildcard,number,garnet,full,modifyHan,bonus,bonusBreakdown,blackChips};
+
+},
+"offline/tile-chips.js":function(module,exports,require){
+'use strict';
+const BASES=['m','p','s','z'].flatMap(s=>Array.from({length:s==='z'?7:9},(_,i)=>s+(i+1)));
+function validate(value=[],{sanma=false}={}){
+ if(!Array.isArray(value)||value.length>34)throw Error('牌別祝儀の形式が不正です');
+ const seen=new Set(),out=[];
+ for(const r of value){if(!r||!BASES.includes(r.tile)||sanma&&r.tile[0]==='m'&&!['m1','m9'].includes(r.tile))throw Error('この対局では使えない牌種です');
+  if(seen.has(r.tile))throw Error('同じ牌種が重複しています');seen.add(r.tile);
+  if(!Number.isSafeInteger(r.chips)||r.chips<0||r.chips>1000)throw Error('牌別祝儀は0〜1000枚の整数です');
+  if(r.chips)out.push({tile:r.tile,chips:r.chips});
+ }
+ return out.sort((a,b)=>BASES.indexOf(a.tile)-BASES.indexOf(b.tile));
+}
+const label=t=>t[0]==='z'?['','東','南','西','北','白','發','中'][+t[1]]:t[1]+({m:'萬',p:'筒',s:'索'}[t[0]]);
+function breakdown(config,tiles,{north=0}={}){
+ const counts=new Map();for(const t of tiles)counts.set(t,(counts.get(t)||0)+1);if(north)counts.set('z4',(counts.get('z4')||0)+north);
+ return validate(config).flatMap(r=>{const count=counts.get(r.tile)||0;return count?[{label:label(r.tile)+'・牌別祝儀',tile:r.tile,count,perTile:r.chips,amount:count*r.chips,reason:count+'枚 × '+r.chips+'枚'}]:[];});
+}
+const summary=value=>validate(value).map(r=>label(r.tile)+' '+r.chips+'枚／1枚').join('・')||'なし';
+module.exports={BASES,validate,label,breakdown,summary};
 
 },
 "vendor/majiang-core/lib/xiangting.js":function(module,exports,require){
@@ -3989,10 +4013,11 @@ module.exports = class Player {
 },
 "offline/custom-four.js":function(module,exports,require){
 'use strict';
+const TileChips=require("offline/tile-chips.js");
 const BASES=['m5','p5','s5','z5'],MARKERS=['0','A','B','C'];
 function integer(v,min,max,label){if(!Number.isSafeInteger(v)||v<min||v>max)throw Error(label+'は'+min+'〜'+max+'の整数です');return v;}
 function text(v,label){if(typeof v!=='string')throw Error(label+'が不正です');v=v.trim().replace(/\s+/g,' ');if(!v||[...v].length>40||/[\u0000-\u001f\u007f]/.test(v))throw Error(label+'は1〜40文字です');return v;}
-function validate(value){if(!value||typeof value!=='object'||Array.isArray(value)||value.version!==1)throw Error('カスタムルールの形式が不正です');const name=text(value.name,'ルール名'),tiles=[],seen=new Set();if(!Array.isArray(value.tiles)||value.tiles.length>16)throw Error('牌の設定が不正です');for(const t of value.tiles){if(!t||!BASES.includes(t.base))throw Error('設定できる牌は五萬・五筒・五索・白ポッチです');const slot=integer(t.slot,0,3,'牌の位置'),key=t.base+':'+slot;if(seen.has(key))throw Error('同じ牌位置が重複しています');seen.add(key);tiles.push({base:t.base,slot,name:text(t.name,'牌の名前'),chips:integer(t.chips,0,1000,'祝儀枚数')});}tiles.sort((a,b)=>BASES.indexOf(a.base)-BASES.indexOf(b.base)||a.slot-b.slot);const rankChips=value.rankChips??[50,25,-25,-50];if(!Array.isArray(rankChips)||rankChips.length!==4||rankChips.some(n=>!Number.isSafeInteger(n)||Math.abs(n)>10000)||rankChips.reduce((a,b)=>a+b)!==0)throw Error('順位祝儀は4人分・合計0の整数にしてください');return {version:1,name,tiles,ippatsuChips:integer(value.ippatsuChips??1,0,1000,'一発祝儀'),uraChips:integer(value.uraChips??1,0,1000,'裏ドラ祝儀'),coldChips:integer(value.coldChips??0,0,1000,'コールド祝儀'),tobiChips:integer(value.tobiChips??10,0,1000,'トビ賞'),rankChips:rankChips.slice()};}
+function validate(value){if(!value||typeof value!=='object'||Array.isArray(value)||value.version!==1)throw Error('カスタムルールの形式が不正です');const name=text(value.name,'ルール名'),tiles=[],seen=new Set();if(!Array.isArray(value.tiles)||value.tiles.length>16)throw Error('牌の設定が不正です');for(const t of value.tiles){if(!t||!BASES.includes(t.base))throw Error('設定できる牌は五萬・五筒・五索・白ポッチです');const slot=integer(t.slot,0,3,'牌の位置'),key=t.base+':'+slot;if(seen.has(key))throw Error('同じ牌位置が重複しています');seen.add(key);tiles.push({base:t.base,slot,name:text(t.name,'牌の名前'),chips:integer(t.chips,0,1000,'祝儀枚数')});}tiles.sort((a,b)=>BASES.indexOf(a.base)-BASES.indexOf(b.base)||a.slot-b.slot);const rankChips=value.rankChips??[50,25,-25,-50];if(!Array.isArray(rankChips)||rankChips.length!==4||rankChips.some(n=>!Number.isSafeInteger(n)||Math.abs(n)>10000)||rankChips.reduce((a,b)=>a+b)!==0)throw Error('順位祝儀は4人分・合計0の整数にしてください');return {version:1,name,tiles,tileChips:TileChips.validate(value.tileChips),ippatsuChips:integer(value.ippatsuChips??1,0,1000,'一発祝儀'),uraChips:integer(value.uraChips??1,0,1000,'裏ドラ祝儀'),coldChips:integer(value.coldChips??0,0,1000,'コールド祝儀'),tobiChips:integer(value.tobiChips??10,0,1000,'トビ賞'),rankChips:rankChips.slice()};}
 function gems(value){const c=validate(value),out={};for(const t of c.tiles){const token=t.base[0]+MARKERS[t.slot];out[token]={id:'custom-'+t.base+'-'+t.slot,name:t.name,base:t.base,han:t.base==='z5'?0:1,effect:'fixed',chips:t.chips,pocchi:t.base==='z5',custom:true};}return out;}
 function example(){return validate({version:1,name:'DAN風・牌構成',tiles:['m5','p5','s5'].flatMap(base=>['金','プラチナ','マリン'].map((name,slot)=>({base,slot,name,chips:[2,4,6][slot]}))),ippatsuChips:2,uraChips:2,coldChips:4,tobiChips:10,rankChips:[20,5,-5,-20]});}
 module.exports={validate,gems,example,BASES,MARKERS};
@@ -4100,10 +4125,11 @@ module.exports={FIELDS,DEFAULTS,PRESET,validate};
 "offline/replay.js":function(module,exports,require){
 'use strict';
 module.exports=function(E){
+ const TileChips=require("offline/tile-chips.js");
  const {M,J}=E,clone=x=>x===undefined?null:JSON.parse(JSON.stringify(x)),schema='houseki-mahjong-replay',version=1;
  const EFFECTS={fixed:'基本祝儀にchips枚を加算',lapis:'和了の最終翻数が祝儀枚数',amethyst:'基本祝儀+1、祝儀倍率は通常2の使用枚数乗。ハードモードは1+使用枚数',pearl:'翻数2倍、祝儀+3',turquoise:'祝儀+4、食い下がりなし、副露後リーチ可（打牌後にも効果牌が必要）',black:'么九牌を祝儀化。タンヤオ5、暗刻5、暗槓10',garnet:'ドラ表示の数牌の最大数字。字牌の場合は裏表示を参照',crystal:'和了牌の数字。字牌0',tourmaline:'和了前持ち点の万・千・百の最大数字。ハードモードの0点は10',gane:'ガーネットとクリスタルの高い方',carnelian:'祝儀優先は-1翻+5枚、翻優先は+5翻-1枚'};
- function rules4(rule){const settings=clone(rule);delete settings.jewelIndicators;delete settings.jewelInherited;return {settings,mode:rule.customFour?'カスタム：'+rule.customFour.name:rule.nekkyou?'ハードモード':'通常',gemTiles:Object.fromEntries(Object.entries(rule.gemTiles||{}).map(([token,g])=>[token,{...clone(g),description:EFFECTS[g.effect],wildcard:g.pocchi?(g.id==='gold-pocchi'?'役ありテンパイでツモ時、万能（副露可）':'リーチ後ツモ時、万能'):null}])),summary:rule.customFour?['カスタム：'+rule.customFour.name,'東風、25000点開始、55000点コールド、1本場1500点','特殊な5は各1翻、ポッチはリーチ後のツモで万能。追加効果は固定祝儀のみ','一発1翻につき'+rule.customFour.ippatsuChips+'枚、裏ドラ1翻につき'+rule.customFour.uraChips+'枚','順位祝儀 '+rule.customFour.rankChips.join('/')+'、トビ '+rule.customFour.tobiChips+'枚、コールド '+rule.customFour.coldChips+'枚オール','Jewel・フルジュエル・抽選祝儀手役は不採用']:['東風、25000点開始、55000点コールド、東と西は場風牌','1本場1500点、切り上げ満貫、槓ドラ先めくり','順位祝儀 '+(rule.nekkyou?'+15/+5/-5/-15、トビ5':'＋50/＋25/−25/−50、トビ10'),'通常祝儀はロン放銃者払い・ツモ各家払い','祝儀手役は '+rule.unlockedYaku+'、基本祝儀+5。アメジスト等の倍率適用前','親和了・テンパイ流局後の任意親流しあり。本場0へ。CPUも選択','フルジュエル：採用数牌宝石を全使用、ポッチ2種類以上。Jewel：通常は効果適用される宝石3枚以上、ハードモードは宝石3種類以上、1翻']};}
- function rules3(g){const S=E.Sanma;const fields=Object.fromEntries(Object.entries(S.H.FIELDS).map(([key,f])=>[key,{value:g.options.house[key],label:f.label,selected:f.values?f.labels[f.values.indexOf(g.options.house[key])]:g.options.house[key]}]));return {settings:clone(g.options),engineRule:clone(g.rule),house:fields,pocchi:S.POCCHI,pocchiNames:S.POCCHI_NAMES,flowerNames:S.FLOWERS,summary:g.options.customSanma?[g.options.customSanma.name+' ／ '+(g.options.customSanma.length==='south'?'東南戦':'東風戦')+' ／ '+g.options.customSanma.startPoints+'点開始',g.options.customSanma.scoring==='points'?'点数三麻：通常の符・翻、祝儀なし、華・ポッチ・五等独自役なし':'五等サンマを調整。華・役・祝儀の設定はsettingsとhouseを参照',g.options.customSanma.scoring==='points'?g.options.customSanma.returnPoints+'点返し、ウマ '+g.options.customSanma.uma.join('/')+'、オカはトップへ加算':'点棒と祝儀は別精算',g.options.customSanma.scoring==='points'?(g.options.customSanma.tsumo==='loss'?'ツモ損あり':'ツモ損なし・ロン点を2人で折半'):'30符固定', '最終局の連荘・和了止めと本場・罰符はsettings.customSanma参照。延長なし']: ['東風35000点開始、萬子2〜8を除く、華は抜き牌、30符固定、ツモ損なし','人和なし。親流しなし。槓ドラ先めくり。持ち点・チップは別計算','北抜きと華抜き、リーチ/オープン/シュバの採用はsettings参照','ポッチ：normal通常/reverse支払い/double倍受取/reverseDouble倍支払い。リーチ後ツモで万能','シュバは各家1ゲーム1回、受取2倍。トビ倍払い有効時、ツモは飛んだ支払者のみ2倍、シュバと重複','春 linked=春枚数×華総数の差分即時祝儀、fixed=抜き時1枚、tulip=リーチ和了時チューリップ、off=なし','夏 rank=打点ランク上昇、han=加翻。秋 dora=5筒索加翻、chips=祝儀、double=5筒索打点祝儀倍','冬 alice=アリス、tulip=チューリップ、chips=1効果あたり2枚、dice=1効果あたりサイコロ1個。ロンの支払元はwinterRonPayer参照','点数・役・追加祝儀の細則はhouseの全項目を参照。通常麻雀の標準ルールだけでは評価しない']};}
+ function rules4(rule){const settings=clone(rule);delete settings.jewelIndicators;delete settings.jewelInherited;return {settings,mode:rule.customFour?'カスタム：'+rule.customFour.name:rule.nekkyou?'ハードモード':'通常',gemTiles:Object.fromEntries(Object.entries(rule.gemTiles||{}).map(([token,g])=>[token,{...clone(g),description:EFFECTS[g.effect],wildcard:g.pocchi?(g.id==='gold-pocchi'?'役ありテンパイでツモ時、万能（副露可）':'リーチ後ツモ時、万能'):null}])),summary:rule.customFour?['カスタム：'+rule.customFour.name,'東風、25000点開始、55000点コールド、1本場1500点','特殊な5は各1翻、ポッチはリーチ後のツモで万能。追加効果は固定祝儀のみ','一発1翻につき'+rule.customFour.ippatsuChips+'枚、裏ドラ1翻につき'+rule.customFour.uraChips+'枚','順位祝儀 '+rule.customFour.rankChips.join('/')+'、トビ '+rule.customFour.tobiChips+'枚、コールド '+rule.customFour.coldChips+'枚オール','牌別祝儀：'+TileChips.summary(rule.customFour.tileChips),'Jewel・フルジュエル・抽選祝儀手役は不採用']:['東風、25000点開始、55000点コールド、東と西は場風牌','1本場1500点、切り上げ満貫、槓ドラ先めくり','順位祝儀 '+(rule.nekkyou?'+15/+5/-5/-15、トビ5':'＋50/＋25/−25/−50、トビ10'),'通常祝儀はロン放銃者払い・ツモ各家払い','祝儀手役は '+rule.unlockedYaku+'、基本祝儀+5。アメジスト等の倍率適用前','親和了・テンパイ流局後の任意親流しあり。本場0へ。CPUも選択','フルジュエル：採用数牌宝石を全使用、ポッチ2種類以上。Jewel：通常は効果適用される宝石3枚以上、ハードモードは宝石3種類以上、1翻']};}
+ function rules3(g){const S=E.Sanma;const fields=Object.fromEntries(Object.entries(S.H.FIELDS).map(([key,f])=>[key,{value:g.options.house[key],label:f.label,selected:f.values?f.labels[f.values.indexOf(g.options.house[key])]:g.options.house[key]}]));return {settings:clone(g.options),engineRule:clone(g.rule),house:fields,pocchi:S.POCCHI,pocchiNames:S.POCCHI_NAMES,flowerNames:S.FLOWERS,summary:g.options.customSanma?[g.options.customSanma.name+' ／ '+(g.options.customSanma.length==='south'?'東南戦':'東風戦')+' ／ '+g.options.customSanma.startPoints+'点開始',g.options.customSanma.scoring==='points'?'点数三麻：通常の符・翻。華・ポッチ・五等独自役なし。牌別祝儀はsettings.customSanma.tileChips参照':'五等サンマを調整。華・役・祝儀の設定はsettingsとhouseを参照',g.options.customSanma.scoring==='points'?g.options.customSanma.returnPoints+'点返し、ウマ '+g.options.customSanma.uma.join('/')+'、オカはトップへ加算':'点棒と祝儀は別精算',g.options.customSanma.scoring==='points'?(g.options.customSanma.tsumo==='loss'?'ツモ損あり':'ツモ損なし・ロン点を2人で折半'):'30符固定', '最終局の連荘・和了止めと本場・罰符はsettings.customSanma参照。延長なし']: ['東風35000点開始、萬子2〜8を除く、華は抜き牌、30符固定、ツモ損なし','人和なし。親流しなし。槓ドラ先めくり。持ち点・チップは別計算','北抜きと華抜き、リーチ/オープン/シュバの採用はsettings参照','ポッチ：normal通常/reverse支払い/double倍受取/reverseDouble倍支払い。リーチ後ツモで万能','シュバは各家1ゲーム1回、受取2倍。トビ倍払い有効時、ツモは飛んだ支払者のみ2倍、シュバと重複','春 linked=春枚数×華総数の差分即時祝儀、fixed=抜き時1枚、tulip=リーチ和了時チューリップ、off=なし','夏 rank=打点ランク上昇、han=加翻。秋 dora=5筒索加翻、chips=祝儀、double=5筒索打点祝儀倍','冬 alice=アリス、tulip=チューリップ、chips=1効果あたり2枚、dice=1効果あたりサイコロ1個。ロンの支払元はwinterRonPayer参照','点数・役・追加祝儀の細則はhouseの全項目を参照。通常麻雀の標準ルールだけでは評価しない']};}
  function notation(gems={}){const tiles={};for(const s of ['m','p','s','z'])for(let n=1;n<=(s==='z'?7:9);n++)tiles[s+n]={normal:s+n,name:s==='z'?['','東','南','西','北','白','發','中'][n]:n+({m:'萬',p:'筒',s:'索'}[s])};for(const [t,g]of Object.entries(gems))tiles[t]={normal:g.base,name:g.name,gemId:g.id};return {roundNumbers:'四麻はhand=0が東1局、wind=0東/1南。サンマはhand=1東1局、4南1局。seat=0東/1南/2西/3北。playerIdは風席ではなく固定ID',suits:{m:'萬子',p:'筒子',s:'索子',z:'字牌',f:'華'},tiles,handFormat:'m123p456s789z11,p123- は手牌と副露。逗点以降は副露。牌文字A/B/C/0は特殊牌であり数字として扱わない',suffixes:{_:'ツモ切り（手牌末尾のツモ牌にも使用）','*':'リーチ宣言','+':'下家から（四麻の相対方向記号。サンマはfromとactorを優先）','=':'対面から','-':'上家から（河では鳴かれた印にも使用）'},seatMapping:'全playerIdは対局開始時の固定ID。四麻の生ログlはその局の風席。各決定のplayerIdsBySeatで変換。サンマは固定ID',unknown:'decision.viewには本人の手牌と公開情報のみ。他家の伏せ手牌・山・未公開裏ドラを含めない'};}
  function create(){return {startedAt:new Date().toISOString(),seq:0,events:[],decisions:[]};}
  function event(record,type,data){record.events.push({seq:++record.seq,type,data:clone(data)});}
@@ -4470,7 +4496,7 @@ module.exports=function(E){
   get indicators(){return this.dead.slice(0,(2+this.kans)*2).filter((_,i)=>i%2===0);}
   get ura(){return this.dead.slice(0,(2+this.kans)*2).filter((_,i)=>i%2===1);}
   spring(id,flower){const before=this.flowers[id].slice();this.flowers[id].push(flower);R.event(this.replayRecord,'flower',{round:this.rounds,playerId:id,tile:flower});const n=S.springDelta(before,this.flowers[id],this.options);if(n)this.chipPay(id,null,n,'春の即時祝儀');this.log.unshift(this.names[id]+'：'+S.FLOWERS[+flower[1]-1]+'を抜きました');}
-  chipPay(winner,loser,n,label){if(this.options.customSanma?.scoring==='points')return;const delta=[0,0,0];for(let i=0;i<3;i++)if(i!==winner&&(loser===null||i===loser)){const amount=n*(this.shuba?.[n>0?winner:i]?2:1);this.chips[i]-=amount;this.chips[winner]+=amount;delta[i]-=amount;delta[winner]+=amount;}this.ledger.push({winner,loser,n,label,delta});}
+  chipPay(winner,loser,n,label){if(this.options.customSanma?.scoring==='points'&&(label!=='和了祝儀'||!n))return;const delta=[0,0,0];for(let i=0;i<3;i++)if(i!==winner&&(loser===null||i===loser)){const amount=n*(this.shuba?.[n>0?winner:i]?2:1);this.chips[i]-=amount;this.chips[winner]+=amount;delta[i]-=amount;delta[winner]+=amount;}this.ledger.push({winner,loser,n,label,delta});}
   take(id){while(this.wall.length){const t=this.wall.pop();if(t[0]==='f'){this.spring(id,t);continue;}return t;}return null;}
   startRound(){this.roundLedgerStart=this.ledger.length;this.phase='dealing';this.rounds++;this.draws=[0,0,0];this.shuba=[false,false,false];this.riichiDeposit=[0,0,0];this.discardedDora=[false,false,false];this.rule['場風牌']=[this.round>3?2:1];this.anyCalls=false;this.pao=[{}, {}, {}];this.kans=0;this.hands=[];this.rivers=[[],[],[]];this.flowers=[[],[],[]];this.north=[0,0,0];this.ippatsu=[false,false,false];this.openRiichi=[false,false,false];this.furiten=[false,false,false];this.mustDiscard=false;this.rinshan=false;this.last=null;this.roundStartPoints=this.points.slice();this.roundStartChips=this.chips.slice();const wall=S.makeWall(this.options,this.rng);this.dead=wall.splice(0,4);this.kanReserve=this.options.house.unlimitedKan?wall.splice(0,2):[];this.wall=wall;for(let id=0;id<3;id++){const tiles=[];for(let j=0;j<13;j++)tiles.push(this.take(id));this.hands.push(new M.Shoupai(tiles));}R.event(this.replayRecord,'qipai',{round:this.rounds,hand:this.round,dealer:this.dealer,honba:this.honba,sticks:this.sticks,points:this.points.slice(),chips:this.chips.slice(),hands:this.hands.map(h=>h.toString()),indicators:this.indicators.slice(),north:this.north.slice(),flowers:this.flowers});this.turn=this.dealer;this.draw();}
   draw(rinshan=false,air=false){this.rinshan=rinshan;this.mustDiscard=false;const t=this.take(this.turn);if(!t)return this.drawnGame();if(!this.hands[this.turn].lizhi)this.furiten[this.turn]=false;this.hands[this.turn].zimo(t);R.event(this.replayRecord,rinshan?'gangzimo':'zimo',{round:this.rounds,playerId:this.turn,tile:t,remaining:this.wall.length});if(!air)this.draws[this.turn]++;this.phase='turn';}
@@ -4618,7 +4644,7 @@ module.exports=function(E){
   // Evaluate wildcard candidates with sanma's own seven-pairs and flower scoring too.
   if(!ron&&hand.lizhi&&Object.values(POCCHI).includes(hand._zimo)){
    const base=hand.clone().dapai(hand._zimo);let best=null,bestValue=-Infinity,bestChips=-Infinity;
-   for(const t of waits(base)){const r=score({...arguments[0],hand:base.clone().zimo(t)});if(!r)continue;const value=seat===0?r.pay.child*2:r.pay.child+r.pay.dealer,chips=r.lines.reduce((n,l)=>n+l.amount,0);if(value>bestValue||value===bestValue&&chips>bestChips){best={...r,pocchiAs:t,pocchi:hand._zimo,white:true,diceEligible:r.diceEligible,physical:hand.toString()};bestValue=value;bestChips=chips;}}
+   for(const t of waits(base)){const r=score({...arguments[0],hand:base.clone().zimo(t)});if(!r)continue;if(customSanma?.tileChips?.length)r.lines=r.lines.filter(l=>!l.tile).concat(require("offline/tile-chips.js").breakdown(customSanma.tileChips,counts(hand),{north}));const value=seat===0?r.pay.child*2:r.pay.child+r.pay.dealer,chips=r.lines.reduce((n,l)=>n+l.amount,0);if(value>bestValue||value===bestValue&&chips>bestChips){best={...r,pocchiAs:t,pocchi:hand._zimo,white:true,diceEligible:r.diceEligible,physical:hand.toString()};bestValue=value;bestChips=chips;}}
    if(best){best.diceEligible=v.instantPocchi?best.diceEligible||ippatsu:true;if(v.instantPocchi&&ippatsu){if(v.instantIncludesIppatsu)best.lines=best.lines.filter(l=>l.label!=='一発');best.lines=best.lines.concat({label:'即ポッチ',amount:3});}}return best;
   }
   const physical=ron?hand.clone().zimo(ron.slice(0,2)):hand,eff=effects(flowers,indicators.concat(v.flowerUra?ura:[])),baopai=indicators.map(indicator).filter(Boolean),fubaopai=hand.lizhi?ura.map(indicator).filter(Boolean):[];
@@ -4646,6 +4672,7 @@ module.exports=function(E){
   add('一発',ippatsu?v.ippatsuChips:0);add('裏ドラ',v.uraChips?extraUra+(hand.lizhi?ura.reduce((n,i)=>n+a.filter(t=>t===dora(i)).length,0):0):0);add('抜き北',north);const gold=J.rawTiles(physical.toString()).filter(t=>t==='p0'||t==='s0').length;const coloredDouble=eff[2]&&flowerRules.autumn==='double'?2:1;add('金牌',gold*(v.fiveSet==='mixed'?2:1)*coloredDouble);if(v.fiveSet==='mixed')add('赤牌',J.rawTiles(physical.toString()).filter(t=>/^[ps]A$/.test(t)).length*coloredDouble);add('春の表示牌',['off','tulip'].includes(flowerRules.spring)?0:indicators.filter(t=>t==='f1').length*5);if(flowerRules.autumn==='chips')add('秋の祝儀',eff[2]);if(flowerRules.winter==='chips')add('冬の祝儀',eff[3]*2);
   if(r.damanguan)add('本役満',ron?20:10);else if(pay.tier===8)add('5倍満',10);else if(pay.tier===7)add('数え役満',5);else if(pay.tier===6)add('三倍満',3);
   if(v.excessChips&&!r.damanguan&&han>=15)add('数え役満の超過翻',han-14);
+  if(customSanma?.tileChips?.length)lines.push(...require("offline/tile-chips.js").breakdown(customSanma.tileChips,counts(physical),{north}));
   const white=!!r.pocchiAs&&Object.values(POCCHI).includes(hand._zimo)&&hand.lizhi,allFlowers=[1,2,3,4].every(n=>flowers.includes('f'+n)||!v.fourFlowerOwn&&indicators.includes('f'+n)),fourNorth=v.fourNorthEight?north===4:north+indicators.filter(t=>normal(t)==='z4').length>=4;const allStar=v.allStar&&hand.menqian&&['p0','pA','s0','sA'].every(t=>J.rawTiles(physical.toString()).filter(x=>x===t).length===(v.fiveSet==='mixed'?1:2));
   return {...r,fu:30,han,yaku,pay,lines,eff,tiles:a,physical:physical.toString(),white,extraUra,gold,allFlowers,fourNorth,allStar,tianhu,diceRuns:r.damanguan||1,diceEligible:!!r.damanguan||pay.tier===8||fourNorth||allFlowers||(v.fiveSet==='original'&&gold===4)||allStar||(v.lastDice&&last)||(!v.instantPocchi&&white),override:v.stackFourSets?0:north===4&&flowers.length===8?200:flowers.length===8||fourNorth&&allFlowers?100:0,allPayBonus:(v.stackFourSets&&north===4&&[1,2,3,4].every(n=>flowers.includes('f'+n))?100:0)+(v.heavenFifty&&tianhu?50:0)};
  }
@@ -4664,6 +4691,7 @@ module.exports=function(E){
 },
 "offline/sanma/custom.js":function(module,exports,require){
 'use strict';
+const TileChips=require("offline/tile-chips.js");
 const integer=(n,min,max,label)=>{if(!Number.isSafeInteger(n)||n<min||n>max)throw Error(label+'は'+min+'〜'+max+'の整数です');return n;};
 function validate(value){
  if(!value||typeof value!=='object'||Array.isArray(value)||value.version!==1)throw Error('カスタム三麻の形式が不正です');
@@ -4676,7 +4704,7 @@ function validate(value){
  if(startPoints%1000||returnPoints%1000)throw Error('開始点・返し点は1000点単位です');
  if((value.notenPool??3000)%1000||(value.honbaRon??300)%100||(value.honbaEach??100)%100)throw Error('本場は100点単位、罰符は1000点単位です');
  const uma=value.uma??[20,0,-20];if(!Array.isArray(uma)||uma.length!==3||uma.some(n=>!Number.isSafeInteger(n)||Math.abs(n)>1000)||uma.reduce((a,b)=>a+b)!==0)throw Error('ウマは3人分・合計0の整数です');
- return {version:1,name,scoring,length,startPoints,returnPoints,uma:uma.slice(),tsumo,dealerRepeat,redFives:value.redFives??true,nuki:value.nuki??true,bustAtZero:value.bustAtZero??false,agariYame:value.agariYame??true,honbaRon:integer(value.honbaRon??300,0,10000,'ロン本場'),honbaEach:integer(value.honbaEach??100,0,10000,'ツモ本場'),notenPool:integer(value.notenPool??3000,0,12000,'ノーテン罰符')};
+ return {version:1,name,tileChips:TileChips.validate(value.tileChips,{sanma:true}),scoring,length,startPoints,returnPoints,uma:uma.slice(),tsumo,dealerRepeat,redFives:value.redFives??true,nuki:value.nuki??true,bustAtZero:value.bustAtZero??false,agariYame:value.agariYame??true,honbaRon:integer(value.honbaRon??300,0,10000,'ロン本場'),honbaEach:integer(value.honbaEach??100,0,10000,'ツモ本場'),notenPool:integer(value.notenPool??3000,0,12000,'ノーテン罰符')};
 }
 function defaults(name='点数三麻・東風'){return validate({version:1,name});}
 function finish(points,order,value,chips=[0,0,0]){
@@ -4699,7 +4727,7 @@ module.exports=function(E){
   const base=r.damanguan?8000*r.damanguan:han>=13?8000:han>=11?6000:han>=8?4000:han>=6?3000:han>=5?2000:Math.min(2000,(r.fu||30)*2**(han+2)),ceil=n=>Math.ceil(n/100)*100,ronPoints=ceil(base*(seat===0?6:4));
   const child=(c.tsumo==='split'?ceil(ronPoints/2):ceil(base*(seat===0?2:1)))+honba*c.honbaEach,dealer=(c.tsumo==='split'?ceil(ronPoints/2):ceil(base*2))+honba*c.honbaEach;
   const label=r.damanguan?'役満':han>=13?'数え役満':han>=11?'三倍満':han>=8?'倍満':han>=6?'跳満':base===2000?'満貫':han+'翻'+r.fu+'符';
-  return {...r,han,yaku,pay:{base,label,tier:0,ron:ronPoints+honba*c.honbaRon,child,dealer},lines:[],eff:[0,0,0,0],tiles:E.J.rawTiles((ron?hand.clone().zimo(ron.slice(0,2)):hand).toString()).map(normal),physical:(ron?hand.clone().zimo(ron.slice(0,2)):hand).toString(),white:false,diceEligible:false,allFlowers:false,fourNorth:false,allStar:false,override:0,allPayBonus:0};
+  return {...r,han,yaku,pay:{base,label,tier:0,ron:ronPoints+honba*c.honbaRon,child,dealer},lines:require("offline/tile-chips.js").breakdown(c.tileChips,E.J.rawTiles((ron?hand.clone().zimo(ron.slice(0,2)):hand).toString()).map(normal),{north}),eff:[0,0,0,0],tiles:E.J.rawTiles((ron?hand.clone().zimo(ron.slice(0,2)):hand).toString()).map(normal),physical:(ron?hand.clone().zimo(ron.slice(0,2)):hand).toString(),white:false,diceEligible:false,allFlowers:false,fourNorth:false,allStar:false,override:0,allPayBonus:0};
  };
 };
 

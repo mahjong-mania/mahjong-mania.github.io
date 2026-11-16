@@ -5,7 +5,7 @@ const all=files(root).filter(f=>!['sw.js','online.html','online.js'].includes(pa
 const clean=s=>s.replace(/[?&]build=[a-f0-9]{16}/g,'').replace(/<meta name="houseki-build" content="[a-f0-9]{16}">/g,'');
 const hash=crypto.createHash('sha256');for(const f of all)hash.update(path.relative(root,f)).update(f.endsWith('.html')?clean(fs.readFileSync(f,'utf8')):fs.readFileSync(f));
 const version=hash.digest('hex').slice(0,16);
-for(const f of all.filter(f=>f.endsWith('.html'))){let html=clean(fs.readFileSync(f,'utf8'));html=html.replace(/((?:src|href)=")([^"#:]+\.(?:js|css)(?:\?[^"#]*)?)(")/g,(_,a,url,b)=>a+url+(url.includes('?')?'&':'?')+'build='+version+b).replace('</head>','<meta name="houseki-build" content="'+version+'"></head>');fs.writeFileSync(f,html);}
+for(const f of [...all.filter(f=>f.endsWith('.html')),path.join(root,'online.html')].filter(f=>fs.existsSync(f))){let html=clean(fs.readFileSync(f,'utf8'));html=html.replace(/((?:src|href)=")([^"#:]+\.(?:js|css)(?:\?[^"#]*)?)(")/g,(_,a,url,b)=>a+url+(url.includes('?')?'&':'?')+'build='+version+b).replace('</head>','<meta name="houseki-build" content="'+version+'"></head>');fs.writeFileSync(f,html);}
 const assets=all.map(f=>'./'+path.relative(root,f).replaceAll('\\','/'));
 fs.writeFileSync(path.join(root,'sw.js'),`'use strict';
 const VERSION='${version}',CACHE='houseki-static-'+VERSION,ASSETS=${JSON.stringify(assets)},BASE=new URL('./',self.location.href);
