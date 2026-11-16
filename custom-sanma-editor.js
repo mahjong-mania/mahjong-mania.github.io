@@ -1,0 +1,35 @@
+'use strict';
+(()=>{
+ function mount(target,{read,apply,nameInput}){
+  const S=JewelOffline.Sanma,C=S.Custom,el=(tag,text)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;return e;},root=el('fieldset');root.className='custom-sanma-editor';root.id='custom-sanma-editor';root.append(el('legend','カスタム三麻'));
+  const enabled=el('input');enabled.type='checkbox';enabled.id='custom-sanma-enabled';const label=el('label','カスタム三麻を使う');label.prepend(enabled);root.append(label);
+  const body=el('div');root.append(body);const fields={};
+  function select(key,title,values){const l=el('label',title),i=el('select');i.id='custom-sanma-'+key;for(const [value,text]of values){const o=el('option',text);o.value=value;i.append(o);}l.append(i);body.append(l);fields[key]=i;}
+  function number(key,title,value,min,max,step=1){const l=el('label',title),i=el('input');i.type='number';i.id='custom-sanma-'+key;i.min=min;i.max=max;i.step=step;i.value=value;l.append(i);body.append(l);fields[key]=i;}
+  select('scoring','基本ルール',[['points','点数三麻（点数で精算・祝儀なし）'],['goto','五等サンマを調整（祝儀あり）']]);
+  select('length','対局の長さ',[['east','東風戦'],['south','東南戦']]);
+  const nameLabel=el('label','保存するルール名');nameInput??=el('input');nameInput.type='text';nameInput.maxLength=40;nameInput.id='sanma-custom-rule-name';const oldLabel=nameInput.closest('label');nameLabel.append(nameInput);if(oldLabel&&oldLabel!==nameLabel)oldLabel.remove();body.prepend(nameLabel);
+  number('startPoints','開始点',35000,1000,100000,1000);number('returnPoints','返し点',40000,1000,100000,1000);
+  for(let n=0;n<3;n++)number('uma'+n,(n+1)+'着のウマ（合計0）',[20,0,-20][n],-1000,1000);
+  select('tsumo','ツモの支払い',[['loss','ツモ損あり'],['split','ツモ損なし（ロン点を2人で折半）']]);
+  select('dealerRepeat','流局時の親',[['tenpai','テンパイなら連荘'],['always','常に連荘']]);
+  number('honbaRon','ロンの1本場',300,0,10000,100);number('honbaEach','ツモの1本場（1人あたり）',100,0,10000,100);number('notenPool','ノーテン罰符（場）',3000,0,12000,1000);
+  for(const [key,text,value]of [['redFives','赤5筒・赤5索を各1枚',true],['nuki','北抜きあり',true],['bustAtZero','0点ちょうどでもトビ',false],['agariYame','最終局の親トップ和了で終了',true]]){const l=el('label',text),i=el('input');i.type='checkbox';i.id='custom-sanma-'+key;i.checked=value;l.prepend(i);body.append(l);fields[key]=i;}
+  const note=el('p','点数三麻では華牌・白ポッチ・五等の独自役や祝儀を使いません。延長なし。返し点と開始点の差額はトップへ加算します。五等を調整する場合、点数三麻専用項目は使いません。');note.className='custom-sanma-note';body.append(note);
+  const saved=el('select');saved.id='custom-sanma-saved';saved.setAttribute('aria-label','保存したカスタム三麻');const actions=el('div');actions.className='custom-rule-controls';actions.append(saved);body.append(actions);const status=el('p');status.id='custom-sanma-status';status.setAttribute('role','status');body.append(status);
+  const KEY='houseki-sanma-custom-rules-v1';let data={version:1,profiles:[]},corrupt=false;
+  try{const raw=localStorage.getItem(KEY);if(raw){data=JSON.parse(raw);if(data.version!==1||!Array.isArray(data.profiles)||data.profiles.length>50)throw Error();for(const p of data.profiles){C.validate(p.options.customSanma);S.options(p.options);}}}catch{corrupt=true;status.textContent='保存データを読み込めません。上書きせず保持しています。';}
+  const intro=document.querySelector('#sanma-setup>p'),originalIntro=intro?.textContent;
+  const pointKeys=['returnPoints','uma0','uma1','uma2','tsumo','redFives','nuki','honbaRon','honbaEach','notenPool'];
+  function sync(){body.hidden=!enabled.checked;if(intro)intro.textContent=enabled.checked?'対局形式・開始点・精算方法を選び、ルールに名前を付けて保存できます。':originalIntro;for(const k of pointKeys)fields[k].disabled=fields.scoring.value!=='points';}
+  function profile(){const values=Object.fromEntries(Object.entries(fields).filter(([k])=>!k.startsWith('uma')).map(([k,i])=>[k,i.type==='checkbox'?i.checked:i.type==='number'?(i.value.trim()===''?NaN:Number(i.value)):i.value]));return C.validate({version:1,name:nameInput.value,...values,uma:[0,1,2].map(n=>fields['uma'+n].value.trim()===''?NaN:Number(fields['uma'+n].value))});}
+  function fill(c,on=true){if(c){c=C.validate(c);nameInput.value=c.name;for(const [k,i]of Object.entries(fields)){const value=k.startsWith('uma')?c.uma[+k.slice(-1)]:c[k];if(i.type==='checkbox')i.checked=value;else i.value=value;}}enabled.checked=on;sync();}
+  function refresh(){saved.replaceChildren();const o=el('option','保存したルールを選ぶ');o.value='';saved.append(o);for(const p of data.profiles){const o=el('option',p.name);o.value=p.name;saved.append(o);}}
+  function button(id,title,fn){const b=el('button',title);b.id=id;b.type='button';b.onclick=fn;actions.append(b);}
+  button('custom-sanma-save','保存（同名は上書き）',()=>{try{if(corrupt)throw Error('元の保存データを読み込めません');const c=profile(),options=S.options({...read(),customSanma:c,customRuleName:c.name}),profiles=data.profiles.filter(p=>p.name!==c.name);if(profiles.length>=50)throw Error('保存は50件までです');const next={version:1,profiles:[...profiles,{name:c.name,options}]};localStorage.setItem(KEY,JSON.stringify(next));data=next;refresh();saved.value=c.name;status.textContent='「'+c.name+'」を保存しました';}catch(e){status.textContent=e.message;}});
+  button('custom-sanma-delete','選択した保存ルールを削除',()=>{try{if(corrupt||!saved.value)return;const next={version:1,profiles:data.profiles.filter(p=>p.name!==saved.value)};localStorage.setItem(KEY,JSON.stringify(next));data=next;refresh();status.textContent='保存ルールを削除しました。過去の成績は残ります。';}catch(e){status.textContent=e.message;}});
+  saved.onchange=()=>{const p=data.profiles.find(p=>p.name===saved.value);if(p){apply(p.options);fill(p.options.customSanma);}};enabled.onchange=()=>{if(enabled.checked&&!nameInput.value.trim())nameInput.value='点数三麻・東風';sync();};fields.scoring.onchange=sync;target.prepend(root);refresh();fill(C.defaults(),false);
+  return {get:()=>enabled.checked?profile():null,enabled:()=>enabled.checked,fill,setEnabled(value){enabled.checked=value;enabled.onchange();},setAuthority(value){root.disabled=!value;},root};
+ }
+ globalThis.CustomSanmaEditor={mount};
+})();

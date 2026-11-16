@@ -1,7 +1,7 @@
 'use strict';
 (function(root,factory){if(typeof module==='object'&&module.exports)module.exports=factory(require('../../offline/result-rules'));else root.RecordData=factory(root.JewelOffline.ResultRules);})(typeof globalThis!=='undefined'?globalThis:this,function(R){
  function load(storage,getReplay=()=>null){
-  const games={four:[],sanma:[]},errors={four:[],sanma:[]},seen=new Set();
+  const games={four:[],sanma:[]},errors={four:[],sanma:[]},seen=new Set();let overrides={};try{const raw=JSON.parse(storage.getItem('houseki-record-rule-overrides-v1')||'{}');if(raw&&typeof raw==='object'&&!Array.isArray(raw))overrides=raw;}catch{}
   const sources=[['four','solo','jewel-offline-results-v1',true],['four','online','houseki-online-results-v1',false],['sanma','solo','houseki-sanma-results-v1',true],['sanma','online','houseki-table-results-v1',false]];
   for(const [game,connection,key,wrapped]of sources)try{
    const raw=JSON.parse(storage.getItem(key)||(wrapped?'{"games":[],"totals":{}}':'[]')),list=wrapped?raw?.games:raw;
@@ -18,7 +18,9 @@
      const settings=g.options||g.settings||replay?.rules?.settings;
      ruleMeta=settings?(game==='four'?R.four(settings):R.sanma(settings)):R.validate(g.ruleMeta,game)||{version:1,game,type:'unknown'};
     }
-    games[game].push({...g,id,results,self,connection,ruleMeta});
+    const overrideKey=game+':'+connection+':'+(id??'row:'+index),explicit=R.validate(overrides[overrideKey],game);let ruleSource='saved';
+    if(explicit){ruleMeta=explicit;ruleSource='manual';}else if(ruleMeta.type==='unknown'){const inferred=R.infer(game,results);if(inferred){ruleMeta=inferred;ruleSource='inferred';}}
+    games[game].push({...g,id,results,self,connection,ruleMeta,ruleSource,overrideKey,pointSettlement:ruleMeta.scoring==='points'||g.options?.customSanma?.scoring==='points'||g.settings?.customSanma?.scoring==='points'});
    }
   }catch{errors[game].push(key);}
   for(const mode of ['four','sanma'])games[mode].sort((a,b)=>(Date.parse(a.at)||0)-(Date.parse(b.at)||0));
@@ -26,8 +28,8 @@
  }
  function filter(games,{connection='all',rule='all'}={}){return games.filter(g=>(connection==='all'||g.connection===connection)&&(rule==='all'||R.key(g.ruleMeta)===rule));}
  function totals(games,seats){
-  const result={games:0,rankChips:0,bonusChips:0,placements:Array(seats).fill(0)};
-  for(const g of games){const r=g.results.find(r=>r.id===g.self);if(!r)continue;result.games++;result.rankChips+=r.rankChips;result.bonusChips+=r.bonusChips;if(Number.isInteger(r.rank)&&r.rank>=1&&r.rank<=seats)result.placements[r.rank-1]++;}
+  const result={games:0,rankChips:0,bonusChips:0,placements:Array(seats).fill(0),score:0,pointGames:0};
+  for(const g of games){const r=g.results.find(r=>r.id===g.self);if(!r)continue;result.games++;result.rankChips+=r.rankChips;result.bonusChips+=r.bonusChips;if(g.pointSettlement&&Number.isFinite(r.score)){result.score+=r.score;result.pointGames++;}if(Number.isInteger(r.rank)&&r.rank>=1&&r.rank<=seats)result.placements[r.rank-1]++;}
   return result;
  }
  function rules(games,game,names=[]){
@@ -36,5 +38,11 @@
   for(const g of games)values.set(R.key(g.ruleMeta),g.ruleMeta);
   return [...values.values()].map(r=>({value:R.key(r),label:R.label(r)}));
  }
- return {load,filter,totals,rules};
+ function assign(storage,key,value,game){
+  const r=R.validate(value,game);if(!r||typeof key!=='string')throw Error('分類が不正です');
+  const raw=JSON.parse(storage.getItem('houseki-record-rule-overrides-v1')||'{}');if(!raw||typeof raw!=='object'||Array.isArray(raw))throw Error('分類の保存データを読み込めません');
+  const next={...raw};if(r.type==='unknown')delete next[key];else next[key]=r;
+  storage.setItem('houseki-record-rule-overrides-v1',JSON.stringify(next));
+ }
+ return {load,filter,totals,rules,assign};
 });
