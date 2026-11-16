@@ -2,3 +2,4 @@
 
 .has-tile-chip{position:relative}.tile-chip-badge{position:absolute!important;right:0;bottom:0;z-index:3;background:#1b4955!important;color:#fff7c0!important;border-radius:2px;padding:0 1px;font:bold 8px/1.3 sans-serif!important;white-space:nowrap;max-width:100%;overflow:hidden}
 .tile-chip-editor label{grid-template-columns:minmax(30px,1fr) minmax(48px,70px) 54px 38px!important}.tile-chip-editor input[type=color]{width:38px;height:34px;padding:2px;border:1px solid #6783a3;border-radius:5px;background:#0b192e;cursor:pointer}
+.custom-special-label{position:absolute;top:0;left:0;right:0;font-size:6px!important;line-height:1.2!important;white-space:nowrap;text-overflow:ellipsis;overflow:hidden;background:#fff2d4;color:#4a2c19;text-align:center;z-index:2}.net-tile:has(.custom-special-label),.stile:has(.custom-special-label){border-width:2px}

@@ -11,7 +11,7 @@
    if(event.type!=='hule')continue;
    const add=(win,chips,method,hand,transfers,detail)=>{
     if(!finite(chips)){missingWins++;return;}
-    const notation={};for(const match of String(hand||'').matchAll(/([mpszf])([0-9A-C]+)/g))for(const n of match[2]){const t=match[1]+n;if(replay.notation?.tiles?.[t])notation[t]=copy(replay.notation.tiles[t]);}
+    const notation={};for(const match of String(hand||'').matchAll(/([mpszf])([0-9A-G]+)/g))for(const n of match[2]){const t=match[1]+n;if(replay.notation?.tiles?.[t])notation[t]=copy(replay.notation.tiles[t]);}
     wins.push({seq:event.seq,at:replay.finishedAt||replay.startedAt||'',matchId:String(replay.matchId),mode:replay.mode,selfId,round:copy(round),chips,method,hand:hand||'',yaku:copy(win.hupai||win.yaku||[]),han:win.fanshu??win.han??null,fu:win.fu??null,points:win.defen??win.received??null,notation,transfers:copy(transfers||[]),detail:copy(detail||null)});
    };
    if(replay.mode==='four'){
