@@ -1,0 +1,28 @@
+'use strict';
+(()=>{
+ const el=(tag,text)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;return e;};
+ function mount(target,{kind,get,names,accept}){
+  const R=JewelOffline.RuleExchange,root=el('details');root.className='rule-exchange';root.dataset.ruleExchange=kind;root.append(el('summary','ルールを共有・読み込む'),el('p','共有リンク・共有コード・ルールファイルで受け渡しできます。読み込む前に内容を確認でき、同じ名前のルールは上書きしません。'));
+  const actions=el('div');actions.className='rule-exchange-actions';root.append(actions);const status=el('p');status.className='rule-exchange-status';status.setAttribute('role','status');
+  const text=el('textarea');text.rows=4;text.maxLength=R.MAX;text.placeholder='受け取った共有リンク・共有コード・JSONを貼り付け';text.setAttribute('aria-label','共有するルール・受け取ったルール');root.append(text);
+  function button(label,fn){const b=el('button',label);b.type='button';b.onclick=fn;actions.append(b);return b;}
+  const current=()=>R.create(kind,get());
+  async function copy(value){text.value=value;if(globalThis.Android?.copyText){Android.copyText(value);return true;}try{await navigator.clipboard.writeText(value);return true;}catch{text.focus();text.select();try{return document.execCommand('copy');}catch{return false;}}}
+  button('共有する',async()=>{try{const v=current(),url=R.link(v);text.value=url;if(globalThis.Android?.shareText){Android.shareText(R.name(v)+'\n'+url);status.textContent='共有先を選んでください';return;}if(navigator.share){try{await navigator.share({title:R.name(v),text:R.name(v),url});status.textContent='共有しました';return;}catch(e){if(e.name==='AbortError'){status.textContent='共有をキャンセルしました';return;}}}status.textContent=await copy(url)?'共有リンクをコピーしました':'下の共有リンクを選択してコピーできます';}catch(e){status.textContent=e.message;}});
+  button('リンクをコピー',async()=>{try{status.textContent=await copy(R.link(current()))?'共有リンクをコピーしました':'下の共有リンクを選択してコピーできます';}catch(e){status.textContent=e.message;}});
+  button('共有コードをコピー',async()=>{try{status.textContent=await copy(R.code(current()))?'共有コードをコピーしました':'下の共有コードを選択してコピーできます';}catch(e){status.textContent=e.message;}});
+  let nativeSave=false;
+  button('ファイルに保存',()=>{try{const v=current(),data=R.json(v),filename='houseki-rule-'+kind+'.json';if(globalThis.Android?.exportReplay){nativeSave=true;Android.exportReplay(filename,data);status.textContent='保存先を選んでください';return;}const url=URL.createObjectURL(new Blob([data],{type:'application/json'})),a=el('a');a.href=url;a.download=filename;a.click();setTimeout(()=>URL.revokeObjectURL(url),60000);status.textContent='ルールファイルの保存を開始しました';}catch(e){status.textContent=e.message;}});
+  window.addEventListener('houseki-replay-export-result',event=>{if(nativeSave){nativeSave=false;status.textContent=event.detail?.message||'保存結果を確認してください';}});
+  const dialog=el('dialog');dialog.className='rule-import-dialog';dialog.setAttribute('aria-label','受け取ったルールの確認');const heading=el('h2'),overview=el('div'),nameLabel=el('label','保存する名前'),name=el('input');name.type='text';name.maxLength=40;nameLabel.append(name);const info=el('p');info.setAttribute('role','status');const controls=el('div');controls.className='rule-exchange-actions';const save=el('button','読み込んで保存'),cancel=el('button','キャンセル'),switchMode=el('a');save.type=cancel.type='button';controls.append(save,cancel);dialog.append(heading,nameLabel,info,switchMode,overview,controls);document.body.append(dialog);heading.tabIndex=-1;let pending=null;
+  cancel.onclick=()=>{pending=null;dialog.close();};dialog.addEventListener('cancel',()=>{pending=null;});
+  function preview(raw){try{pending=R.parse(raw);const match=pending.kind===kind;heading.textContent='受け取った'+(pending.kind==='four'?'四麻':'三麻')+'ルール';overview.replaceChildren(...R.summary(pending).map(line=>el('p',line)));name.value=R.availableName(pending,names());nameLabel.hidden=!match;save.hidden=!match;switchMode.hidden=match;switchMode.textContent=match?'':(pending.kind==='four'?'カスタム四麻':'カスタム三麻')+'で読み込む';if(!match)switchMode.href=R.link(pending,location.href);info.textContent=match?'保存してから、そのまま対局に使えます。':'種類の違うルールです。対応する設定画面を開いてください。';if(!dialog.open)dialog.showModal();heading.focus({preventScroll:true});dialog.scrollTop=0;}catch(e){pending=null;status.textContent=e.message;}}
+  save.onclick=()=>{try{if(!pending||pending.kind!==kind)return;const v=R.rename(pending,name.value);if(names().includes(R.name(v)))throw Error('同じ保存名があります。別の名前に変更してください');accept(v.profile);dialog.close();pending=null;if(new URLSearchParams(location.hash.slice(1)).has('rule'))history.replaceState(null,'',location.pathname+location.search);status.textContent='「'+R.name(v)+'」を読み込んで保存しました';}catch(e){info.textContent=e.message;name.focus();}};
+  button('貼り付けたルールを読み込む',()=>preview(text.value));
+  const file=el('input');file.type='file';file.accept='.json,.txt,application/json,text/plain';file.hidden=true;file.setAttribute('aria-label','ルールファイル');root.append(file);button('ファイルを読み込む',()=>{if(globalThis.Android?.importRule){Android.importRule();status.textContent='読み込むルールファイルを選んでください';}else file.click();});file.onchange=async()=>{try{const f=file.files?.[0];if(!f)return;if(f.size>R.MAX)throw Error('ルールファイルは64KBまでです');preview(await f.text());}catch(e){status.textContent=e.message;}finally{file.value='';}};
+  window.addEventListener('houseki-rule-import',event=>{const d=event.detail;if(d?.status==='loaded')preview(d.text);else status.textContent=d?.message||'読み込みをキャンセルしました';});
+  root.append(status);target.append(root);function fromHash(){if(new URLSearchParams(location.hash.slice(1)).has('rule'))preview(location.hash);}queueMicrotask(fromHash);window.addEventListener('hashchange',fromHash);
+  return {root,dialog};
+ }
+ globalThis.RuleExchangeUI={mount};
+})();
