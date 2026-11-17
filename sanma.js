@@ -45,6 +45,6 @@
  $('sanma-preset-house').onclick=()=>{fill(S.options({flowerCopies:1,pocchiTypes:['normal'],pocchiIppatsuDice:false,flowerRules:{spring:'tulip',summer:'rank',autumn:'double',winter:'dice'},house:S.H.PRESET}));$('sanma-preset-note').textContent='宝石麻雀ルールを選択しました。人和は不採用。独自役を含む宝石麻雀ルールです。一発・裏ドラは各1枚、即ポッチは一発込み3枚です。';};
  customEditor=CustomSanmaEditor.mount($('sanma-config'),{nameInput:$('sanma-custom-rule-name'),read:formOptions,apply:fill});
  try{fill(S.options(JSON.parse(localStorage.getItem(new URLSearchParams(location.search).get('custom')==='1'?'houseki-sanma-custom-settings-v1':'houseki-sanma-settings-v1')||'{}')));}catch{fill(S.options());}
- if(new URLSearchParams(location.search).get('custom')==='1'){customEditor.setEnabled(true);$('setup-title').textContent='カスタム三麻';if(new URLSearchParams(location.search).get('bingo')==='1'){customEditor.fill(S.Custom.bingo());$('setup-title').textContent='スーパービンゴ';}if(new URLSearchParams(location.search).get('dan')==='1'){customEditor.fill(S.Custom.dan());$('setup-title').textContent='三麻DAN';}}
+ if(new URLSearchParams(location.search).get('custom')==='1'){customEditor.setEnabled(true);$('setup-title').textContent='カスタム三麻';if(new URLSearchParams(location.search).get('bingo')==='1'){customEditor.fill(S.Custom.bingo());$('setup-title').textContent='スーパービンゴ';}if(new URLSearchParams(location.search).get('dan')==='1'){customEditor.fill(S.Custom.dan());$('setup-title').textContent='オススメ黒船風ルール';}}
  globalThis.SanmaUI={start,render,pump,apply,tile,diceAnimation};$('sanma-setup').showModal();
 })();
