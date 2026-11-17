@@ -3220,7 +3220,8 @@ function hule_mianzi(shoupai, rongpai) {
 
 function get_hudi(mianzi, zhuangfeng, menfeng, rule) {
 
-    const zhuangfengpai = new RegExp(`^z[${(rule['場風牌']||[zhuangfeng+1]).join('')}].*$`);
+    const roundWinds = [...new Set([...(rule['場風牌']||[zhuangfeng+1]), ...(rule.sanmaDan ? [4] : [])])];
+    const zhuangfengpai = new RegExp(`^z[${roundWinds.join('')}].*$`);
     const menfengpai    = new RegExp(`^z${menfeng+1}.*$`);
     const sanyuanpai    = /^z[567].*$/;
 
@@ -3255,7 +3256,7 @@ function get_hudi(mianzi, zhuangfeng, menfeng, rule) {
         danqi:      false,
         pinghu:     false,
         zhuangfeng: zhuangfeng,
-        roundWinds: rule['場風牌']||[zhuangfeng+1],
+        roundWinds: roundWinds,
         menfeng:    menfeng
     };
 
@@ -3352,7 +3353,7 @@ function get_hupai(mianzi, hudi, pre_hupai, post_hupai, rule) {
         let feng_hanzi = ['東','南','西','北'];
         let fanpai_all = [];
         for (const wind of hudi.roundWinds) if (hudi.kezi.z[wind])
-                fanpai_all.push({ name: '場風 '+feng_hanzi[wind-1], fanshu: 1 });
+                fanpai_all.push({ name: rule.sanmaDan && wind === 4 ? '役牌 北' : '場風 '+feng_hanzi[wind-1], fanshu: 1 });
         if (hudi.kezi.z[hudi.menfeng+1])
                 fanpai_all.push({ name: '自風 '+feng_hanzi[hudi.menfeng],
                                   fanshu: 1 });
@@ -4735,7 +4736,7 @@ function finish(points,order,value,chips=[0,0,0]){
  return order.map((id,index)=>({id,rank:index+1,points:points[id],score:c.scoring==='points'?Math.round(((c.settlement==='rank'?0:(points[id]-c.returnPoints)/1000+(index===0?oka:0))+c.uma[index])*1000)/1000:0,rankChips:c.scoring==='points'?((c.settlement==='rank'?0:(points[id]-c.returnPoints)/1000+(index===0?oka:0))+c.uma[index])/c.chipPoint:undefined,chipPoint:c.chipPoint,settlement:c.settlement,bonusChips:chips[id]}));
 }
 const bingo=(name='スーパービンゴ')=>validate({version:1,name,scoring:'bingo',length:'east',startPoints:30000,returnPoints:30000,notenPool:2000,nuki:false,agariYame:true});
-function describe(value){const c=validate(value),lines=[c.name+' ／ '+(c.length==='south'?'東南戦':'東風戦')+' ／ '+c.startPoints+'点開始'];if(c.scoring==='dan')lines.push('黒船風ルール：東3局トップ40000点以上で終了、未満で南入。南場は40000点到達で終了。親は連荘を放棄できます。',(c.danRiichiMode==='choice'?'通常リーチは1000点。':'')+'特殊リーチ：待ち牌を全員に公開。5000点・祝儀2枚供託。和了時は表・裏各2枚追加。流局時は各相手に1枚、点棒は供託継続。','開始表示は表・裏各'+c.danInitialIndicators+'枚。0点でトビ、2枚オール払い。ロン1本場2000点・ツモ各1000点。','抜き5萬の色祝儀：'+(c.danExtractTiming==='instant'?'抜いた場で各家から受取。':'和了時に合算。')+'色牌は赤1・金2・プラチナ3枚、各1翻。色表示はドラ先へ色を引継ぎ。白ポッチ表示で白が万能化、裏ポッチは好きな通常ドラ・倍ポッチなら色も選択。','三風2翻・三連刻2翻・小車輪6翻。大車輪・萬子混一色・四連刻は役満。チャンタ4翻/鳴き2翻、純チャン6翻/鳴き4翻。','数え役満13翻、16翻以上5倍満。順位+10/0/−10、2着4万点未満はトップへ3枚、8万点以上トップは追加2枚オール。');else if(c.scoring==='points')lines.push((c.settlement==='rank'?'完全順位制（持ち点差なし）':c.returnPoints+'点返し・オカはトップへ加算')+' ／ ウマ '+c.uma.join('/'),'1000点＝1pt、祝儀1枚＝'+c.chipPoint+'pt。精算ptをチップに換算し祝儀収支と合算。');else if(c.scoring==='bingo')lines.push('スーパービンゴ：萬子なし・7筒7索各8枚・赤5各2枚・華4枚。七士無双／オールセブン。確変チューリップ・16Rを採用。');else lines.push('五等サンマを調整');if(['points','dan'].includes(c.scoring)){lines.push(...c.tileRules.map(r=>TileChips.label(r.tile)+'：'+(!r.included?'不使用':(r.hand?'手牌可':'手牌不可')+'・'+(r.extract?'抜き可':'抜き不可')+'・手牌ドラ'+(r.handDora?1:0)+'翻／抜きドラ'+(r.nukiDora?1:0)+'翻')));lines.push('宝石：'+(c.gemSelection.map(id=>require("offline/jewels.js").BY_ID[id].name).join('・')||'なし')+'（'+(c.gemMode==='hard'?'ハードモード':'通常')+'）','特殊牌：'+(c.specialTiles.map(t=>t.name+' '+t.han+'翻/'+t.chips+'枚').join('・')||'なし'));}lines.push('牌別祝儀：'+TileChips.summary(c.tileChips));return lines;}
+function describe(value){const c=validate(value),lines=[c.name+' ／ '+(c.length==='south'?'東南戦':'東風戦')+' ／ '+c.startPoints+'点開始'];if(c.scoring==='dan')lines.push('黒船風ルール：北は全員共通の役牌（刻子・槓子で1翻）。東3局トップ40000点以上で終了、未満で南入。南場は40000点到達で終了。親は連荘を放棄できます。',(c.danRiichiMode==='choice'?'通常リーチは1000点。':'')+'特殊リーチ：待ち牌を全員に公開。5000点・祝儀2枚供託。和了時は表・裏各2枚追加。流局時は各相手に1枚、点棒は供託継続。','開始表示は表・裏各'+c.danInitialIndicators+'枚。0点でトビ、2枚オール払い。ロン1本場2000点・ツモ各1000点。','抜き5萬の色祝儀：'+(c.danExtractTiming==='instant'?'抜いた場で各家から受取。':'和了時に合算。')+'色牌は赤1・金2・プラチナ3枚、各1翻。色表示はドラ先へ色を引継ぎ。白ポッチ表示で白が万能化、裏ポッチは好きな通常ドラ・倍ポッチなら色も選択。','三風2翻・三連刻2翻・小車輪6翻。大車輪・萬子混一色・四連刻は役満。チャンタ4翻/鳴き2翻、純チャン6翻/鳴き4翻。','数え役満13翻、16翻以上5倍満。順位+10/0/−10、2着4万点未満はトップへ3枚、8万点以上トップは追加2枚オール。');else if(c.scoring==='points')lines.push((c.settlement==='rank'?'完全順位制（持ち点差なし）':c.returnPoints+'点返し・オカはトップへ加算')+' ／ ウマ '+c.uma.join('/'),'1000点＝1pt、祝儀1枚＝'+c.chipPoint+'pt。精算ptをチップに換算し祝儀収支と合算。');else if(c.scoring==='bingo')lines.push('スーパービンゴ：萬子なし・7筒7索各8枚・赤5各2枚・華4枚。七士無双／オールセブン。確変チューリップ・16Rを採用。');else lines.push('五等サンマを調整');if(['points','dan'].includes(c.scoring)){lines.push(...c.tileRules.map(r=>TileChips.label(r.tile)+'：'+(!r.included?'不使用':(r.hand?'手牌可':'手牌不可')+'・'+(r.extract?'抜き可':'抜き不可')+'・手牌ドラ'+(r.handDora?1:0)+'翻／抜きドラ'+(r.nukiDora?1:0)+'翻')));lines.push('宝石：'+(c.gemSelection.map(id=>require("offline/jewels.js").BY_ID[id].name).join('・')||'なし')+'（'+(c.gemMode==='hard'?'ハードモード':'通常')+'）','特殊牌：'+(c.specialTiles.map(t=>t.name+' '+t.han+'翻/'+t.chips+'枚').join('・')||'なし'));}lines.push('牌別祝儀：'+TileChips.summary(c.tileChips));return lines;}
 module.exports={validate,defaults,finish,bingo,Tiles,describe,dan:()=>require("offline/sanma/dan.js").profile()};
 
 },
