@@ -35,3 +35,4 @@
 /* A draw must not recenter or resize the tiles that were already in the hand. */
 #sanma-hand{justify-content:flex-start}
 #sanma-hand .stile{flex:0 0 min(var(--hand-size),calc((100% - 38px)/14));width:min(var(--hand-size),calc((100% - 38px)/14))}
+.sanma-reach-toast:not(.shuba) strong{white-space:nowrap}

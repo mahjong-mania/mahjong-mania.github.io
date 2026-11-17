@@ -49,3 +49,5 @@ body.sanma-classic #sanma-hand>.draw{margin-left:7px}
 .net-sanma-own .net-hand>button{padding:0;margin:0;border:0}
 .net-sanma-own .net-hand>button .net-tile{width:100%;height:100%;max-width:none;min-width:0}
 .net-sanma-own .net-hand .net-tile small{font-size:max(5px,calc(var(--hand-slot)*.19))}
+.sanma-classic-board .classic-public-waits{height:32%;overflow:auto;overscroll-behavior:contain;scrollbar-width:thin}.classic-public-waits h3{color:#ffe0a1}.special-riichi-waits{margin:5px 0 8px}.special-riichi-waits>strong{display:block;max-width:100%;font-size:clamp(7px,2cqw,12px);font-weight:600;line-height:1.4;color:#f2ddb7;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.public-wait-tiles{display:flex;flex-wrap:wrap;gap:2px;margin-top:3px}.sanma-classic-board .public-wait-tiles>.stile,.sanma-classic-board .public-wait-tiles>.net-tile{--size:clamp(13px,4cqw,22px);width:var(--size);height:calc(var(--size)*1.42)}
+.sanma-classic-board .classic-public-waits{left:74%;width:24%}
